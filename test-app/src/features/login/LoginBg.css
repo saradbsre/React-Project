@@ -1,0 +1,24 @@
+/* Real estate background images for login page */
+.login-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+}
+.login-bg img {
+  position: absolute;
+  object-fit: cover;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0.18;
+  filter: blur(2px) brightness(0.95);
+  z-index: 0;
+}
+
+.login-container {
+  z-index: 2;
+  position: relative;
+}
