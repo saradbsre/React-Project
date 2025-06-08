@@ -40,7 +40,7 @@ const Checklist = () => {
   useEffect(() => {
     setLoadingBuildings(true);
     setLoadingEquipment(true);
-    axios.get('/api/buildings')
+    axios.get('https://react-project-backend-4cfx.onrender.com/api/buildings')
       .then(res => {
         if (res.data.success) setBuildings(res.data.buildings);
         else setError('Failed to load buildings');
@@ -48,7 +48,7 @@ const Checklist = () => {
       .catch(() => setError('Failed to load buildings'))
       .finally(() => setLoadingBuildings(false));
 
-    axios.get('/api/equipment')
+    axios.get('https://react-project-backend-4cfx.onrender.com/api/equipment')
       .then(res => {
         if (res.data.success) {
           setEquipmentList(res.data.equipment);
@@ -73,7 +73,7 @@ const Checklist = () => {
       return;
     }
     setLoadingUnits(true);
-    axios.get(`/api/units?buildingId=${form.buildingId}`)
+    axios.get(`https://react-project-backend-4cfx.onrender.com/api/units?buildingId=${form.buildingId}`)
       .then(res => {
         if (res.data.success) setUnits(res.data.units);
         else setError('Failed to load units');
