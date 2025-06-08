@@ -128,7 +128,7 @@ const Checklist = () => {
       return;
     }
     // Always send both buildingId and unitId to backend
-    axios.get(`/api/unit-details?unit_id=${form.unitId}`)
+    axios.get(`https://react-project-backend-4cfx.onrender.com/api/unit-details?unit_id=${form.unitId}`)
       .then(res => {
         if (res.data.contract && res.data.tenant) {
           setForm(f => ({
@@ -175,7 +175,7 @@ const Checklist = () => {
     // const signature = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
     const signature = signatureRef.current.toDataURL('image/png');
     try {
-      await axios.post('/api/checklist', {
+      await axios.post('https://react-project-backend-4cfx.onrender.com/api/checklist', {
         unit: form.unitId,
         contract: form.contractId, // Now using contract_id
         visitType: form.visitType,
@@ -576,7 +576,7 @@ const Checklist = () => {
               pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
             });
             try {
-              const resp = await axios.post('/api/send-report', {
+              const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
                 pdfBase64,
                 contractId: form.contractId,
                 subject: 'Checklist Report',
