@@ -15,7 +15,7 @@ const Login = () => {
     e.preventDefault();
     setError('');
     try {
-      const res = await axios.post('/api/login', { username, password });
+      const res = await axios.post('https://react-project-backend-4cfx.onrender.com/api/login', { username, password });
       if (res.data && res.data.success) {
         navigate('/checklist');
       } else {
