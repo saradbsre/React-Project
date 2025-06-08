@@ -4,6 +4,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import axios from 'axios';
+import jsPDF from 'jspdf';
 import './Checklist.css';
 
 
@@ -31,6 +32,8 @@ const Checklist = () => {
   const [error, setError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [showReport, setShowReport] = useState(false);
+  const [reportData, setReportData] = useState(null);
 
 
   // Fetch buildings and equipment on mount
@@ -124,21 +127,23 @@ const Checklist = () => {
       setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '' }));
       return;
     }
-    axios.get(`/api/tenant?unitId=${form.unitId}`)
+    // Always send both buildingId and unitId to backend
+    axios.get(`/api/unit-details?unit_id=${form.unitId}`)
       .then(res => {
-        if (res.data.success && res.data.tenantName) {
+        if (res.data.contract && res.data.tenant) {
           setForm(f => ({
             ...f,
-            tenantName: res.data.tenantName,
-            contractNo: res.data.contractNo || '',
-            startDate: res.data.startDate || '',
-            endDate: res.data.endDate || ''
+            tenantName: res.data.tenant.full_name || '',
+            contractNo: res.data.contract.contract_number || '',
+            startDate: res.data.contract.start_date || '',
+            endDate: res.data.contract.end_date || '',
+            contractId: res.data.contract.id || ''
           }));
         } else {
-          setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '' }));
+          setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '', contractId: '' }));
         }
       })
-      .catch(() => setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '' })));
+      .catch(() => setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '', contractId: '' })));
   }, [form.unitId]);
 
 
@@ -170,18 +175,35 @@ const Checklist = () => {
     // const signature = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
     const signature = signatureRef.current.toDataURL('image/png');
     try {
-      await axios.post('/api/submit-checklist', {
-        unitId: form.unitId,
+      await axios.post('/api/checklist', {
+        unit: form.unitId,
+        contract: form.contractId, // Now using contract_id
+        visitType: form.visitType,
+        equipment: equipmentState,
+        signature,
+        date: new Date().toISOString()
+      });
+      setSuccess('Checklist submitted successfully!');
+      setError('');
+      // Prepare report data for preview
+      setReportData({
+        buildingName,
+        unitName,
         tenantName: form.tenantName,
         contractNo: form.contractNo,
         startDate: form.startDate,
         endDate: form.endDate,
         visitType: form.visitType,
-        equipment: equipmentState,
-        signature
+        equipment: equipmentList.map(eq => ({
+          name: eq.name,
+          status: equipmentState[eq.name]?.status || '—',
+          remarks: equipmentState[eq.name]?.remarks || ''
+        })),
+        signature: signatureRef.current ? signatureRef.current.toDataURL('image/png') : '',
+        date: new Date().toLocaleString(),
+        username: form.tenantName || 'Technician'
       });
-      setSuccess('Checklist submitted successfully!');
-      setError('');
+      setShowReport(true);
       setStep(1);
       // Only reset equipment state if equipmentList is available
       if (equipmentList && equipmentList.length > 0) {
@@ -209,10 +231,88 @@ const Checklist = () => {
     }
   };
 
+  // Print handler
+  const handlePrint = () => {
+    const printContents = document.getElementById('checklist-report-preview').innerHTML;
+    const win = window.open('', '', 'width=900,height=700');
+    win.document.write(`
+      <html>
+        <head>
+          <title>Checklist Report</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5fafd; margin: 0; padding: 0; }
+            .report-header { text-align: center; padding: 24px 0 8px 0; border-bottom: 2px solid #1976d2; }
+            .report-title { font-size: 2rem; color: #1976d2; font-weight: 800; letter-spacing: 2px; }
+            .report-footer { text-align: center; color: #1976d2; font-size: 1rem; padding: 12px 0 8px 0; border-top: 2px solid #1976d2; margin-top: 32px; }
+            .report-section { margin: 24px 0; }
+            .report-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            .report-table th, .report-table td { border: 1px solid #90caf9; padding: 8px 12px; }
+            .report-table th { background: #e3f2fd; color: #1976d2; }
+            .signature-img { border: 2px solid #1976d2; border-radius: 8px; margin-top: 12px; }
+          </style>
+        </head>
+        <body>${printContents}</body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+      win.close();
+    }, 500);
+  };
+
+  // PDF handler
+  const handleDownloadPDF = () => {
+    if (!reportData) return;
+    const doc = new jsPDF();
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(25, 118, 210);
+    doc.text('ABDULWAHED BINSHABIB REAL ESTATE', 105, 18, { align: 'center' });
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Checklist Report', 105, 28, { align: 'center' });
+    // Details
+    doc.setFontSize(12);
+    let y = 40;
+    doc.text(`Date: ${reportData.date}`, 10, y);
+    doc.text(`Technician: ${reportData.username}`, 140, y);
+    y += 10;
+    doc.text(`Building: ${reportData.buildingName}`, 10, y);
+    doc.text(`Unit: ${reportData.unitName}`, 140, y);
+    y += 10;
+    doc.text(`Tenant: ${reportData.tenantName}`, 10, y);
+    doc.text(`Contract No: ${reportData.contractNo}`, 140, y);
+    y += 10;
+    doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}`, 10, y);
+    doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}`, 140, y);
+    y += 10;
+    doc.text(`Visit Type: ${reportData.visitType}`, 10, y);
+    y += 10;
+    doc.text('Equipment:', 10, y);
+    y += 8;
+    reportData.equipment.forEach(eq => {
+      doc.text(`- ${eq.name}: ${eq.status}${eq.remarks ? ` (Remarks: ${eq.remarks})` : ''}`, 14, y);
+      y += 7;
+    });
+    // Signature
+    if (reportData.signature) {
+      doc.text('Tenant Signature:', 10, y + 5);
+      doc.addImage(reportData.signature, 'PNG', 60, y, 80, 30);
+      y += 35;
+    }
+    // Footer
+    doc.setFontSize(10);
+    doc.setTextColor(25, 118, 210);
+    doc.text('This is a system-generated report. © AbdulWahed BinShabib Real Estate', 105, 285, { align: 'center' });
+    doc.save('Checklist_Report.pdf');
+  };
+
 
 
   // Step 1: Checklist Form
-  if (step === 1) {
+  if (step === 1 && !showReport) {
     return (
       <div className="checklist-form">
         <h2>Equipment Checklist</h2>
@@ -333,6 +433,165 @@ const Checklist = () => {
         >
           Next
         </button>
+      </div>
+    );
+  }
+
+  // Report Preview
+  if (showReport && reportData) {
+    return (
+      <div className="checklist-form" style={{ maxWidth: 800 }}>
+        <div id="checklist-report-preview">
+          <div className="report-header">
+            <div className="report-title">ABDULWAHED BINSHABIB REAL ESTATE</div>
+            <div style={{ fontSize: 18, color: '#1976d2', fontWeight: 700, marginTop: 4 }}>Checklist Report</div>
+          </div>
+          <div className="report-section" style={{ marginTop: 24 }}>
+            <table className="report-table" style={{ width: '100%', marginBottom: 18 }}>
+              <tbody>
+                <tr>
+                  <th style={{ width: 160 }}>Date</th>
+                  <td>{reportData.date}</td>
+                  <th style={{ width: 160 }}>Technician</th>
+                  <td>{reportData.username}</td>
+                </tr>
+                <tr>
+                  <th>Building</th>
+                  <td>{reportData.buildingName}</td>
+                  <th>Unit</th>
+                  <td>{reportData.unitName}</td>
+                </tr>
+                <tr>
+                  <th>Tenant</th>
+                  <td>{reportData.tenantName}</td>
+                  <th>Contract No</th>
+                  <td>{reportData.contractNo}</td>
+                </tr>
+                <tr>
+                  <th>Start</th>
+                  <td>{reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}</td>
+                  <th>End</th>
+                  <td>{reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}</td>
+                </tr>
+                <tr>
+                  <th>Visit Type</th>
+                  <td colSpan={3}>{reportData.visitType}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style={{ marginBottom: 12 }}>
+              <b>Equipment Status:</b>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {reportData.equipment.map((eq, idx) => (
+                  <li key={idx}>
+                    <b>{eq.name}:</b> {eq.status}
+                    {eq.remarks ? ` (Remarks: ${eq.remarks})` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <b>Tenant Signature:</b><br />
+              {reportData.signature && (
+                <img
+                  src={reportData.signature}
+                  alt="Tenant Signature"
+                  className="signature-img"
+                  style={{ width: 240, height: 80, background: '#fff', border: '2px solid #1976d2', borderRadius: 8, marginTop: 8 }}
+                />
+              )}
+            </div>
+          </div>
+          <div className="report-footer">
+            This is a system-generated report. &copy; AbdulWahed BinShabib Real Estate
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 18, marginTop: 32, justifyContent: 'center' }}>
+          <button onClick={() => setShowReport(false)} style={{ background: '#bbdefb', color: '#1976d2', fontWeight: 700 }}>Back</button>
+          <button onClick={handlePrint} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Preview & Print</button>
+          <button onClick={handleDownloadPDF} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Download PDF</button>
+          <button onClick={async () => {
+            // Generate PDF as base64
+            const doc = new jsPDF();
+            doc.setFontSize(20);
+            doc.setTextColor(25, 118, 210);
+            doc.text('ABDULWAHED BINSHABIB REAL ESTATE', 105, 18, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Checklist Report', 105, 28, { align: 'center' });
+            doc.setFontSize(12);
+            let y = 40;
+            doc.text(`Date: ${reportData.date}`, 10, y);
+            doc.text(`Technician: ${reportData.username}`, 140, y);
+            y += 10;
+            doc.text(`Building: ${reportData.buildingName}`, 10, y);
+            doc.text(`Unit: ${reportData.unitName}`, 140, y);
+            y += 10;
+            doc.text(`Tenant: ${reportData.tenantName}`, 10, y);
+            doc.text(`Contract No: ${reportData.contractNo}`, 140, y);
+            y += 10;
+            doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}`, 10, y);
+            doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}`, 140, y);
+            y += 10;
+            doc.text(`Visit Type: ${reportData.visitType}`, 10, y);
+            y += 10;
+            doc.text('Equipment:', 10, y);
+            y += 8;
+            reportData.equipment.forEach(eq => {
+              doc.text(`- ${eq.name}: ${eq.status}${eq.remarks ? ` (Remarks: ${eq.remarks})` : ''}`, 14, y);
+              y += 7;
+            });
+            if (reportData.signature) {
+              doc.text('Tenant Signature:', 10, y + 5);
+              doc.addImage(reportData.signature, 'PNG', 60, y, 80, 30);
+              y += 35;
+            }
+            doc.setFontSize(10);
+            doc.setTextColor(25, 118, 210);
+            doc.text('This is a system-generated report. © AbdulWahed BinShabib Real Estate', 105, 285, { align: 'center' });
+            // Get PDF as base64
+            // SAFER: Use doc.output('datauristring') and extract base64 part
+            let pdfBase64 = '';
+            try {
+              // jsPDF v2+ supports 'datauristring' output
+              const dataUri = doc.output('datauristring');
+              // dataUri is like 'data:application/pdf;filename=generated.pdf;base64,JVBERi0xLjc...'
+              const base64Match = dataUri.match(/base64,(.+)$/);
+              if (base64Match) {
+                pdfBase64 = base64Match[1];
+              } else {
+                throw new Error('Could not extract base64 PDF');
+              }
+            } catch (e) {
+              alert('Failed to generate PDF for email: ' + e.message);
+              return;
+            }
+            // Debug: log base64 length
+            console.log('PDF base64 length:', pdfBase64.length);
+            // Send contractId and pdfBase64 to backend, backend will fetch tenant email
+            // Debug log
+            console.log('Sending to /api/send-report:', {
+              contractId: form.contractId,
+              pdfBase64Preview: pdfBase64 ? pdfBase64.substring(0, 100) + '...' : pdfBase64,
+              pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
+            });
+            try {
+              const resp = await axios.post('/api/send-report', {
+                pdfBase64,
+                contractId: form.contractId,
+                subject: 'Checklist Report',
+                text: 'Please find attached your checklist report.'
+              });
+              if (resp.data.success) {
+                alert('Report sent successfully!');
+              } else {
+                alert('Failed to send report: ' + (resp.data.error || 'Unknown error'));
+              }
+            } catch (err) {
+              alert('Failed to send report: ' + (err.response?.data?.error || err.message));
+            }
+          }} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Send by Email</button>
+        </div>
       </div>
     );
   }

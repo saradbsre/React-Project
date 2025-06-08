@@ -1,221 +1,343 @@
+// Only require nodemailer and crypto once at the top of the file
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+
+// Utility to decrypt password (simple AES for demonstration)
+function decryptPassword(encrypted, key) {
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key, 'hex'), Buffer.alloc(16, 0));
+  let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+
+
+
+
+
+
+// --- Express app and middleware setup (only once, at the top) ---
 const express = require('express');
-const session = require('express-session');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 const { connect } = require('./db');
 const sql = require('mssql');
+require('dotenv').config();
+
 const app = express();
-
 app.use(cors());
-app.use(express.json());
-app.use(session({ secret: 'secret-key', resave: false, saveUninitialized: true }));
+app.use(bodyParser.json({ limit: '5mb' }));
 
-// Get all buildings
-app.get('/api/buildings', async (req, res) => {
-  try {
-    const pool = await connect();
-    const result = await pool.request().query('SELECT id, name FROM buildings ORDER BY name');
-    res.json({ success: true, buildings: result.recordset });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+// API to send checklist PDF to tenant
+app.post('/api/send-report', async (req, res) => {
+  // Debug log for incoming request body
+  console.log('POST /api/send-report body:', req.body);
+  const pdfBase64 = req.body.pdfBase64;
+  const contractId = req.body.contractId;
+  const subject = req.body.subject;
+  const text = req.body.text;
+  if (!pdfBase64 || typeof pdfBase64 !== 'string' || !pdfBase64.trim()) {
+    return res.status(400).json({ success: false, error: 'Missing or invalid PDF data', received: req.body });
   }
-});
-
-// Get units by building id
-app.get('/api/units', async (req, res) => {
-  const buildingId = req.query.buildingId;
-  if (!buildingId) return res.status(400).json({ success: false, error: 'Missing buildingId' });
-  try {
-    const pool = await connect();
-    const result = await pool.request()
-      .input('buildingId', sql.Int, buildingId)
-      .query('SELECT id, flat_no FROM units WHERE building_id = @buildingId ORDER BY flat_no');
-    res.json({ success: true, units: result.recordset });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+  if (!contractId) {
+    return res.status(400).json({ success: false, error: 'Missing contractId', received: req.body });
   }
-});
-
-// Get tenant name, contract no, start date, and end date by unit id (from contracts table)
-app.get('/api/tenant', async (req, res) => {
-  const unitId = req.query.unitId;
-  if (!unitId) return res.status(400).json({ success: false, error: 'Missing unitId' });
+  let pdfBuffer;
   try {
-    const pool = await connect();
-    // Get the latest contract for the unit (assuming latest by start_date)
-    const result = await pool.request()
-      .input('unitId', sql.Int, unitId)
-      .query(`
-        SELECT TOP 1 tenant_name, contract_no, start_date, end_date
-        FROM contracts
-        WHERE unit_id = @unitId
-        ORDER BY start_date DESC, id DESC
-      `);
-    if (result.recordset.length > 0) {
-      const c = result.recordset[0];
-      res.json({
-        success: true,
-        tenantName: c.tenant_name,
-        contractNo: c.contract_no,
-        startDate: c.start_date,
-        endDate: c.end_date
-      });
-    } else {
-      res.json({ success: false, tenantName: '', contractNo: '', startDate: '', endDate: '' });
+    pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+      throw new Error('Invalid PDF buffer');
     }
+  } catch (e) {
+    return res.status(400).json({ success: false, error: 'Failed to decode PDF base64 data' });
+  }
+  try {
+    await connect();
+    // Get tenant email from contract and tenant master
+    const result = await sql.query`
+      SELECT t.email
+      FROM Contracts c
+      JOIN Tenants t ON c.tenant_id = t.id
+      WHERE c.id = ${contractId}
+    `;
+    if (!result.recordset.length || !result.recordset[0].email) {
+      return res.status(400).json({ success: false, error: 'Tenant email not found for contract' });
+    }
+    const tenantEmail = result.recordset[0].email;
+    // Store the encrypted password and key in env for security
+    const encryptedPass = process.env.MAIL_PASS_ENC;
+    const key = process.env.MAIL_KEY;
+    console.log('MAIL_PASS_ENC:', encryptedPass, 'length:', encryptedPass ? encryptedPass.length : 0);
+    console.log('MAIL_KEY:', key, 'length:', key ? key.length : 0);
+    try {
+      const keyBuffer = Buffer.from(key, 'hex');
+      console.log('Buffer.from(key, "hex") length:', keyBuffer.length);
+      const password = decryptPassword(encryptedPass, key);
+      // continue as normal
+      const transporter = nodemailer.createTransport({
+        host: 'binshabibgroup.ae',
+        port: 465,
+        secure: true, // SSL
+        auth: {
+          user: 'sarad@binshabibgroup.ae',
+          pass: password
+        }
+      });
+      await transporter.sendMail({
+        from: 'sarad@binshabibgroup.ae',
+        to: tenantEmail,
+        subject: subject || 'Checklist Report',
+        text: text || 'Please find attached your checklist report.',
+        attachments: [
+          {
+            filename: 'Checklist_Report.pdf',
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+      res.json({ success: true });
+      return;
+    } catch (e) {
+      console.error('Decryption or mail config error:', e);
+      return res.status(500).json({ success: false, error: 'Decryption or mail config error: ' + e.message });
+    }
+    const transporter = nodemailer.createTransport({
+      host: 'binshabibgroup.ae',
+      port: 465,
+      secure: true, // SSL
+      auth: {
+        user: 'sarad@binshabibgroup.ae',
+        pass: password
+      }
+    });
+    await transporter.sendMail({
+      from: 'sarad@binshabibgroup.ae',
+      to: tenantEmail,
+      subject: subject || 'Checklist Report',
+      text: text || 'Please find attached your checklist report.',
+      attachments: [
+        {
+          filename: 'Checklist_Report.pdf',
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    });
+    res.json({ success: true });
   } catch (err) {
+    console.error('Email send error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Test endpoint
-app.get('/test', async (req, res) => {
+// Get tenant and contract details for a unit
+app.get('/api/unit-details', async (req, res) => {
+  const { unit_id } = req.query;
   try {
-    const pool = await connect();
-    const result = await pool.request().query('SELECT name FROM sys.tables');
-    const tableNames = result.recordset.map(row => row.name);
-    res.json({
-      success: true,
-      message: 'Database connection successful',
-      tables: tableNames
-    });
+    await connect();
+    // Get unit info and join to contract and tenant in one query
+    const result = await sql.query`
+      SELECT u.*, c.id AS contract_id, c.contract_no contract_number, c.start_date, c.end_date, c.tenant_id,
+             t.id AS tenant_id, t.full_name, t.email, t.phone
+      FROM Units u
+      LEFT JOIN Contracts c ON u.id = c.unit_id
+      LEFT JOIN Tenants t ON c.tenant_id = t.id
+      WHERE u.id = ${unit_id}
+    `;
+    if (!result.recordset.length) return res.json({ tenant: null, contract: null });
+    const row = result.recordset[0];
+    // Compose contract and tenant objects for frontend
+    let contract = null, tenant = null;
+    if (row.contract_id) {
+      contract = {
+        id: row.contract_id,
+        contract_number: row.contract_number,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        tenant_id: row.tenant_id
+      };
+    }
+    if (row.tenant_id) {
+      tenant = {
+        id: row.tenant_id,
+        full_name: row.full_name,
+        email: row.email,
+        phone: row.phone
+      };
+    }
+    res.json({ tenant, contract });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: 'Database connection failed',
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Login API
-app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const pool = await connect();
-    const result = await pool.request()
-      .input('username', sql.NVarChar(50), username)
-      .input('password', sql.NVarChar(50), password)
-      .query('SELECT * FROM users WHERE username=@username AND password=@password');
-    if (result.recordset.length > 0) res.json({ success: true });
-    else res.json({ success: false });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Get equipment list from master table
+// Get equipment master list
 app.get('/api/equipment', async (req, res) => {
   try {
-    const pool = await connect();
-    const result = await pool.request().query('SELECT id, name FROM equipment_master ORDER BY id');
+    await connect();
+    // Remove 'description' if it does not exist in your Equipment_Master table
+    const result = await sql.query`SELECT id, name FROM Equipment_Master`;
     res.json({ success: true, equipment: result.recordset });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Submit checklist
-// Submit checklist with dynamic equipment
-app.post('/api/submit-checklist', async (req, res) => {
-  const { unitId, tenantName, contractNo, startDate, endDate, visitType, equipment, signature } = req.body;
+// Get all buildings
+app.get('/api/buildings', async (req, res) => {
   try {
-    const pool = await connect();
-    // Store equipment as JSON string
-    await pool.request()
-      .input('unitId', sql.Int, unitId)
-      .input('tenantName', sql.NVarChar(100), tenantName)
-      .input('contractNo', sql.NVarChar(50), contractNo)
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
-      .input('visitType', sql.NVarChar(50), visitType)
-      .input('equipment', sql.NVarChar(sql.MAX), JSON.stringify(equipment))
-      .input('signature', sql.NVarChar(sql.MAX), signature)
-      .query(`INSERT INTO checklists (unitId, tenantName, contractNo, startDate, endDate, visitType, equipment, signature)
-        VALUES (@unitId, @tenantName, @contractNo, @startDate, @endDate, @visitType, @equipment, @signature)`);
-    res.json({ success: true });
+    await connect();
+    const result = await sql.query`SELECT id, name FROM Buildings`;
+    res.json({ success: true, buildings: result.recordset });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-//app.listen(5000, () => console.log('Server running on port 5000'));
-// db.serialize(() => {
+// Get units for a building
+app.get('/api/units', async (req, res) => {
+  // Accept both building_id and buildingId for compatibility
+  const building_id = req.query.building_id || req.query.buildingId;
+  try {
+    await connect();
+    // Use correct column name for unit/flat number (now using 'flat_no')
+    const result = await sql.query`
+      SELECT id, flat_no FROM Units WHERE building_id = ${building_id}
+    `;
+    res.json({ success: true, units: result.recordset });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// Get tenant and contract details for a unit (for checklist autofill)
+app.get('/api/tenant', async (req, res) => {
+  const unitId = req.query.unitId;
+  const buildingId = req.query.buildingId;
+  if (!unitId) return res.json({ success: false, error: 'Missing unitId' });
+  try {
+    await connect();
+    // Join all relevant tables and filter by unit and (optionally) building
+    let result;
+    if (buildingId) {
+      result = await sql.query`
+        SELECT 
+          b.id AS building_id, b.name AS building_name, 
+          u.id AS unit_id, u.flat_no,
+          c.contract_no contract_number, c.start_date, c.end_date, 
+          t.full_name AS tenant_name
+        FROM Units u
+        JOIN Buildings b ON u.building_id = b.id
+        LEFT JOIN Contracts c ON u.id = c.unit_id
+        LEFT JOIN Tenants t ON c.tenant_id = t.id
+        WHERE u.id = ${unitId} AND b.id = ${buildingId}
+      `;
+    } else {
+      result = await sql.query`
+        SELECT 
+          b.id AS building_id, b.name AS building_name, 
+          u.id AS unit_id, u.flat_no,
+          c.contract_no contract_number, c.start_date, c.end_date, 
+          t.full_name AS tenant_name
+        FROM Units u
+        JOIN Buildings b ON u.building_id = b.id
+        LEFT JOIN Contracts c ON u.id = c.unit_id
+        LEFT JOIN Tenants t ON c.tenant_id = t.id
+        WHERE u.id = ${unitId}
+      `;
+    }
+    console.log('API /api/tenant result:', result.recordset);
+    if (!result.recordset.length) {
+      return res.json({ success: false, error: 'No contract found for this unit/building' });
+    }
+    const { contract_number, contract_no, start_date, end_date, tenant_name } = result.recordset[0];
+    res.json({
+      success: true,
+      tenantName: tenant_name || '',
+      contractNo: contract_number || contract_no || '',
+      startDate: start_date || '',
+      endDate: end_date || ''
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-// Create tables if not exist (run once at server start)
-// async function ensureTables() {
-//   const pool = await connect();
-//   // Users table
-//   await pool.request().query(`
-//     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='users' AND xtype='U')
-//     CREATE TABLE users (
-//       id INT IDENTITY(1,1) PRIMARY KEY,
-//       username NVARCHAR(50) NOT NULL UNIQUE,
-//       password NVARCHAR(50) NOT NULL
-//     )
-//   `);
-//   // Insert default user if not exists
-//   await pool.request().query(`
-//     IF NOT EXISTS (SELECT * FROM users WHERE username = 'tech1')
-//     INSERT INTO users (username, password) VALUES ('tech1', '1234')
-//   `);
-//   // Checklists table
-//   await pool.request().query(`
-//     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='checklists' AND xtype='U')
-//     CREATE TABLE checklists (
-//       id INT IDENTITY(1,1) PRIMARY KEY,
-//       flatNo NVARCHAR(50) NOT NULL,
-//       tenantName NVARCHAR(100) NOT NULL,
-//       visitType NVARCHAR(50) NOT NULL,
-//       ac NVARCHAR(10) NOT NULL,
-//       lights NVARCHAR(10) NOT NULL,
-//       heater NVARCHAR(10) NOT NULL,
-//       signature NVARCHAR(MAX) NOT NULL,
-//       created_at DATETIME DEFAULT GETDATE()
-//     )
-//   `);
-// }
 
-// ensureTables().catch(console.error);
-
-
-// Login API
+// Login endpoint using Users table
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+  console.log('Login request received:', { username, password });
+
   try {
-    const pool = await connect();
-    const result = await pool.request()
-      .input('username', sql.NVarChar(50), username)
-      .input('password', sql.NVarChar(50), password)
-      .query('SELECT * FROM users WHERE username=@username AND password=@password');
-    if (result.recordset.length > 0) res.json({ success: true });
-    else res.json({ success: false });
+    await connect();
+    const trimmedUsername = username ? username.trim() : '';
+    const trimmedPassword = password ? password.trim() : '';
+
+    console.log('Trimmed credentials:', { username: trimmedUsername, password: trimmedPassword });
+
+    const result = await sql.query`
+      SELECT * FROM Users WHERE username = ${trimmedUsername} AND password = ${trimmedPassword}
+    `;
+
+    console.log('Query result:', result.recordset);
+
+    if (result.recordset.length > 0) {
+      console.log('Login successful for user:', result.recordset[0]);
+      res.json({ success: true, user: result.recordset[0] });
+    } else {
+      console.log('Login failed: Invalid username or password.');
+      res.json({ success: false, message: 'Invalid username or password.' });
+    }
   } catch (err) {
+    console.error('Error during login:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Submit checklist
-// Submit checklist with dynamic equipment
-app.post('/api/submit-checklist', async (req, res) => {
-  const { unitId, tenantName, contractNo, startDate, endDate, visitType, equipment, signature } = req.body;
+app.post('/api/checklist', async (req, res) => {
+  const { contract, visitType, equipment, signature, date } = req.body;
   try {
-    const pool = await connect();
-    // Store equipment as JSON string
-    await pool.request()
-      .input('unitId', sql.Int, unitId)
-      .input('tenantName', sql.NVarChar(100), tenantName)
-      .input('contractNo', sql.NVarChar(50), contractNo)
-      .input('startDate', sql.Date, startDate)
-      .input('endDate', sql.Date, endDate)
-      .input('visitType', sql.NVarChar(50), visitType)
-      .input('equipment', sql.NVarChar(sql.MAX), JSON.stringify(equipment))
-      .input('signature', sql.NVarChar(sql.MAX), signature)
-      .query(`INSERT INTO checklists (unitId, tenantName, contractNo, startDate, endDate, visitType, equipment, signature)
-        VALUES (@unitId, @tenantName, @contractNo, @startDate, @endDate, @visitType, @equipment, @signature)`);
+    await connect();
+    await sql.query`
+      INSERT INTO checklists (contract_id, visitType, equipment, signature, created_at)
+      VALUES (${contract}, ${visitType}, ${JSON.stringify(equipment)}, ${signature}, ${date})
+    `;
     res.json({ success: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.listen(5000, '0.0.0.0', () => console.log('Server running on port 0.0.0.0:5000'));
+// Generate a professional report for a checklist
+app.get('/api/report', async (req, res) => {
+  const { checklist_id } = req.query;
+  try {
+    await connect();
+    // Fetch checklist details
+    const checklistResult = await sql.query`
+        SELECT c.checklistid, b.name AS building_name, u.flat_no AS unit_name, t.full_name AS tenant_name,
+       ct.contract_no AS contract_number, ct.start_date, ct.end_date, c.visitType, c.equipment, c.signature, c.created_at date
+FROM checklists c
+JOIN Contracts ct ON c.contract_id = ct.id
+JOIN Units u ON ct.unit_id = u.id
+JOIN Buildings b ON u.building_id = b.id
+LEFT JOIN Tenants t ON ct.tenant_id = t.id
+      WHERE c.checklistid = ${checklist_id}
+    `;
+
+    if (!checklistResult.recordset.length) {
+      return res.status(404).json({ error: 'Checklist not found' });
+    }
+
+    const checklist = checklistResult.recordset[0];
+    res.json({ checklist });
+  } catch (err) {
+    console.error('Error generating report:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
