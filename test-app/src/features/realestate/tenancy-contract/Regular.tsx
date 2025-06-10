@@ -3,8 +3,23 @@ import SignatureCanvas from 'react-signature-canvas';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 
-
-
+  type Unit = { id: string; flat_no: string };
+  type Building = { id: string; name: string };
+  type Equipment = { id: string; name: string };
+  type ReportData = {
+  buildingName: string;
+  unitName: string;
+  tenantName: string;
+  contractNo: string;
+  startDate: string;
+  endDate: string;
+  visitType: string;
+  equipment: { name: string; status: string; remarks: string }[];
+  tenantsignature: string;
+  techniciansignature: string;
+  date: string;
+  username: string;
+};
 
 const Checklist = () => {
   // const username = localStorage.getItem('username')
@@ -21,9 +36,8 @@ const Checklist = () => {
     endDate: '',
     visitType: 'Move-In',
   });
-  type Building = { id: string; name: string };
+ 
   const [buildings, setBuildings] = useState<Building[]>([]);
-  type Unit = { id: string; flat_no: string };
   const [units, setUnits] = useState<Unit[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]); // [{id, name}]
   const [equipmentState, setEquipmentState] = useState<Record<string, { status: string; remarks: string }>>({}); // { [name]: { status, remarks } }
@@ -36,23 +50,10 @@ const Checklist = () => {
   const [showReport, setShowReport] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [tenantSignatureData, setTenantSignatureData] = useState('');
-  type Equipment = { id: string; name: string };
+
   // type EquipmentState = { [key: string]: { status: string; remarks: string } } & { [key: number]: { status: string; remarks: string } };
 
-  type ReportData = {
-  buildingName: string;
-  unitName: string;
-  tenantName: string;
-  contractNo: string;
-  startDate: string;
-  endDate: string;
-  visitType: string;
-  equipment: { name: string; status: string; remarks: string }[];
-  tenantsignature: string;
-  techniciansignature: string;
-  date: string;
-  username: string;
-};
+
 
   // Fetch buildings and equipment on mount
   useEffect(() => {
