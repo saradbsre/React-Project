@@ -10,23 +10,33 @@ function decryptPassword(encrypted, key) {
   return decrypted;
 }
 
-
-
-
-
-
-
 // --- Express app and middleware setup (only once, at the top) ---
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { connect } = require('./db');
 const sql = require('mssql');
+
+
+
 require('dotenv').config();
+const jwt = require('jsonwebtoken')
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' }));
+
+app.get('/testconnection', async (req, res) => {
+  try {
+    const pool = await connect();
+    const result = await pool.request().query('SELECT 1 AS test');
+    res.json({ success: true, message: 'Database connection successful', result: result.recordset });
+  } catch (err) {
+    console.error('Database connection test failed:', err);
+    res.status(500).json({ success: false, message: 'Database connection failed', error: err.message });
+  }
+});
 
 // API to send checklist PDF to tenant
 app.post('/api/send-report', async (req, res) => {
@@ -274,34 +284,58 @@ app.post('/api/login', async (req, res) => {
     const trimmedUsername = username ? username.trim() : '';
     const trimmedPassword = password ? password.trim() : '';
 
-    console.log('Trimmed credentials:', { username: trimmedUsername, password: trimmedPassword });
-
-    const result = await sql.query`
-      SELECT * FROM Users WHERE username = ${trimmedUsername} AND password = ${trimmedPassword}
+    // Step 1: Authenticate user
+    const userResult = await sql.query`
+      SELECT * FROM tbluser 
+      WHERE uname = ${trimmedUsername} AND 
+      CAST(DECRYPTBYPASSPHRASE('I CANT TELL YOU', password) AS VARCHAR(8000)) = ${trimmedPassword}
     `;
 
-    console.log('Query result:', result.recordset);
-
-    if (result.recordset.length > 0) {
-      console.log('Login successful for user:', result.recordset[0]);
-      res.json({ success: true, user: result.recordset[0] });
-    } else {
+    if (userResult.recordset.length === 0) {
       console.log('Login failed: Invalid username or password.');
-      res.json({ success: false, message: 'Invalid username or password.' });
+      return res.json({ success: false, message: 'Invalid username or password.' });
     }
+
+    const user = userResult.recordset[0];
+    // console.log('Login successful for user:', user);
+    console.log('Logged‑in user record:', user);
+    // Step 2: Get module access based on roleid
+    const accessResult = await sql.query`
+      SELECT distinct(m.App_id)
+      FROM role2 r2
+      JOIN module m ON r2.module = m.module
+      WHERE r2.roleid = ${user.roleid}
+    `;
+
+    const accessKeys = accessResult.recordset.map(row => row.App_id); // Example: ['MNT', 'TNT']
+
+    // Step 3: Create JWT token
+    const tokenPayload = {
+      username: user.Uname,
+      role: user.roleid,
+      access: accessKeys,
+    };
+    //Expire account after 1 hour of inactivity then logs out automatically
+    // const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
+
+    // Step 4: Return response
+    res.json({ success: true, token, username: user.Uname, role: user.roleid, access: accessKeys });
+
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
+
 app.post('/api/checklist', async (req, res) => {
-  const { contract, visitType, equipment, signature, date } = req.body;
+  const { contract, visitType, equipment, tenantsignature, techniciansignature, date } = req.body;
   try {
     await connect();
     await sql.query`
-      INSERT INTO checklists (contract_id, visitType, equipment, signature, created_at)
-      VALUES (${contract}, ${visitType}, ${JSON.stringify(equipment)}, ${signature}, ${date})
+      INSERT INTO checklists (contract_id, visitType, equipment, techsignature, tenantsignature, created_at)
+      VALUES (${contract}, ${visitType}, ${JSON.stringify(equipment)}, ${techniciansignature}, ${tenantsignature}, ${date})
     `;
     res.json({ success: true });
   } catch (err) {
@@ -318,7 +352,7 @@ app.get('/api/report', async (req, res) => {
     // Fetch checklist details
     const checklistResult = await sql.query`
         SELECT c.checklistid, b.name AS building_name, u.flat_no AS unit_name, t.full_name AS tenant_name,
-       ct.contract_no AS contract_number, ct.start_date, ct.end_date, c.visitType, c.equipment, c.signature, c.created_at date
+       ct.contract_no AS contract_number, ct.start_date, ct.end_date, c.visitType, c.equipment, c.techsignature, c.tenantsignature, c.created_at date
 FROM checklists c
 JOIN Contracts ct ON c.contract_id = ct.id
 JOIN Units u ON ct.unit_id = u.id
