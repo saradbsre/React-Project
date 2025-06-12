@@ -1,5 +1,4 @@
 // import AdminHeader from '../../components/adminheader/AdminHeader'; // <-- update the path accordingly
-
 export default function Dashboard() {
   return (
     <>

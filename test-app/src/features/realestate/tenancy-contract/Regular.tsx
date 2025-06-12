@@ -3,7 +3,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 
-  type Unit = { id: string; flat_no: string };
+  type Unit = { flat_no: string };
   type Building = { id: string; name: string };
   type Equipment = { id: string; name: string };
   type ReportData = {
@@ -55,34 +55,17 @@ const Checklist = () => {
 
 
 
-  // Fetch buildings and equipment on mount
-  useEffect(() => {
-    setLoadingBuildings(true);
-    setLoadingEquipment(true);
-    axios.get('https://react-project-backend-4cfx.onrender.com/api/buildings')
-      .then(res => {
-        if (res.data.success) setBuildings(res.data.buildings);
-        else setError('Failed to load buildings');
-      })
-      .catch(() => setError('Failed to load buildings'))
-      .finally(() => setLoadingBuildings(false));
-
-    axios.get('https://react-project-backend-4cfx.onrender.com/api/equipment')
-      .then(res => {
-        if (res.data.success) {
-          setEquipmentList(res.data.equipment);
-          // Initialize equipmentState with default values
-          const initial: Record<string, { status: string; remarks: string }> = {};
-          res.data.equipment.forEach((eq: Equipment) => {
-            initial[eq.name] = { status: 'Good', remarks: '' };
-          });
-          setEquipmentState(initial);
-        } else setError('Failed to load equipment');
-      })
-      .catch(() => setError('Failed to load equipment'))
-      .finally(() => setLoadingEquipment(false));
-  }, []);
-
+  // Fetch buildings on mount
+    useEffect(() => {
+      setLoadingBuildings(true);
+      axios.get('http://localhost:3001/api/buildings')
+        .then(res => {
+          if (res.data.success) setBuildings(res.data.buildings);
+          else setError('Failed to load buildings');
+        })
+        .catch(() => setError('Failed to load buildings'))
+        .finally(() => setLoadingBuildings(false));
+    }, []);
 
   // Fetch units when building changes
   useEffect(() => {
@@ -92,7 +75,7 @@ const Checklist = () => {
       return;
     }
     setLoadingUnits(true);
-    axios.get(`https://react-project-backend-4cfx.onrender.com/api/units?buildingId=${form.buildingId}`)
+    axios.get(`http://localhost:3001/api/units?buildingId=${form.buildingId}`)
       .then(res => {
         if (res.data.success) setUnits(res.data.units);
         else setError('Failed to load units');
@@ -100,6 +83,35 @@ const Checklist = () => {
       .catch(() => setError('Failed to load units'))
       .finally(() => setLoadingUnits(false));
   }, [form.buildingId]);
+
+  // Fetch equipment when buildingId or unitId changes
+  useEffect(() => {
+    if (!form.buildingId || !form.unitId) {
+      setEquipmentList([]);
+      setEquipmentState({});
+      return;
+    }
+    setLoadingEquipment(true);
+    axios.get(`http://localhost:3001/api/equipment?buildingId=${form.buildingId}&unitId=${form.unitId}`)
+      .then(res => {
+        if (res.data.success) {
+          // Map susec_name to name
+          const equipment = res.data.equipment.map((eq: { susec_name: string }, idx: number) => ({
+            id: idx, // or use another unique value if available
+            name: eq.susec_name
+          }));
+          setEquipmentList(equipment);
+          // Initialize equipmentState with default values
+          const initial: Record<string, { status: string; remarks: string }> = {};
+          equipment.forEach((eq: { name: string }) => {
+            initial[eq.name] = { status: 'Good', remarks: '' };
+          });
+          setEquipmentState(initial);
+        } else setError('Failed to load equipment');
+      })
+      .catch(() => setError('Failed to load equipment'))
+      .finally(() => setLoadingEquipment(false));
+  }, [form.buildingId, form.unitId]);
 
 
   // For visitType radio
@@ -147,7 +159,7 @@ const Checklist = () => {
       return;
     }
     // Always send both buildingId and unitId to backend
-    axios.get(`https://react-project-backend-4cfx.onrender.com/api/unit-details?unit_id=${form.unitId}`)
+    axios.get(`http://localhost:3001/api/unit-details?unit_id=${form.unitId}`)
       .then(res => {
         if (res.data.contract && res.data.tenant) {
           setForm(f => ({
@@ -226,7 +238,7 @@ const Checklist = () => {
         tenantsignature,
         date: new Date().toISOString()
       });
-      setSuccess('Checklist submitted successfully!');
+      // setSuccess('Checklist submitted successfully!');
       setError('');
       // Prepare report data for preview
       setReportData({
@@ -324,7 +336,7 @@ const Checklist = () => {
     // Header
     doc.setFontSize(20);
     doc.setTextColor(25, 118, 210);
-    doc.text('ABDULWAHED BINSHABIB REAL ESTATE', 105, 18, { align: 'center' });
+    doc.text('ABDULWAHED AHMAD RASHED BIN SHABIB', 105, 18, { align: 'center' });
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
     doc.text('Checklist Report', 105, 28, { align: 'center' });
@@ -340,8 +352,8 @@ const Checklist = () => {
     doc.text(`Tenant: ${reportData.tenantName}`, 10, y);
     doc.text(`Contract No: ${reportData.contractNo}`, 140, y);
     y += 10;
-    doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}`, 10, y);
-    doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}`, 140, y);
+    doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}`, 10, y);
+    doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}`, 140, y);
     y += 10;
     doc.text(`Visit Type: ${reportData.visitType}`, 10, y);
     y += 10;
@@ -365,7 +377,7 @@ const Checklist = () => {
     // Footer
     doc.setFontSize(10);
     doc.setTextColor(25, 118, 210);
-    doc.text('This is a system-generated report. © AbdulWahed BinShabib Real Estate', 105, 285, { align: 'center' });
+    doc.text('This is a system-generated report. © ABDULWAHED AHMAD RASHED BIN SHABIB', 105, 285, { align: 'center' });
     doc.save('Checklist_Report.pdf');
   };
 
@@ -386,12 +398,12 @@ const Checklist = () => {
           ))}
         </select>
         <label>Unit / Flat</label>
-        <select name="unitId" value={form.unitId} onChange={handleInputChange} disabled={!form.buildingId || loadingUnits}>
-          <option value="">{loadingUnits ? 'Loading...' : '-- Select Unit --'}</option>
-          {units.map(u => (
-            <option key={u.id} value={u.id}>{u.flat_no}</option>
-          ))}
-        </select>
+          <select name="unitId" value={form.unitId} onChange={handleInputChange} disabled={!form.buildingId || loadingUnits}>
+            <option value="">{loadingUnits ? 'Loading...' : '-- Select Unit --'}</option>
+            {units.map(u => (
+              <option key={u.flat_no} value={u.flat_no}>{u.flat_no}</option>
+            ))}
+          </select>
         <div
           style={{
             background: '#e3f2fd',
@@ -419,11 +431,11 @@ const Checklist = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 120 }}>
             <span style={{ color: '#1976d2', fontWeight: 700, fontSize: '1.08rem', letterSpacing: 0.5 }}>Start</span>
-            <span style={{ color: '#388e3c', fontWeight: 700, fontSize: '1.08rem', marginTop: 2 }}>{form.startDate ? new Date(form.startDate).toLocaleDateString() : '—'}</span>
+            <span style={{ color: '#388e3c', fontWeight: 700, fontSize: '1.08rem', marginTop: 2 }}>{form.startDate ? new Date(form.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 120 }}>
             <span style={{ color: '#1976d2', fontWeight: 700, fontSize: '1.08rem', letterSpacing: 0.5 }}>End</span>
-            <span style={{ color: '#d32f2f', fontWeight: 700, fontSize: '1.08rem', marginTop: 2 }}>{form.endDate ? new Date(form.endDate).toLocaleDateString() : '—'}</span>
+            <span style={{ color: '#d32f2f', fontWeight: 700, fontSize: '1.08rem', marginTop: 2 }}>{form.endDate ? new Date(form.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
           </div>
         </div>
 
@@ -440,43 +452,47 @@ const Checklist = () => {
         </div>
 
         {/* Dynamic equipment rows */}
-        {loadingEquipment ? (
-          <div style={{ margin: '1rem 0', color: '#1976d2' }}>Loading equipment...</div>
-        ) : (
-          equipmentList.map(eq => (
-            <div className="equipment-row" style={{ alignItems: 'center', marginBottom: 16 }} key={eq.id}>
-              <label className="equip-label" style={{ minWidth: 120 }}>{eq.name}:</label>
-              <div style={{ display: 'flex', gap: 18 }}>
-                <label className="radio-label" style={{ marginRight: 18 }}>
+        {form.unitId && equipmentList.length > 0 ? (
+          loadingEquipment ? (
+            <div style={{ margin: '1rem 0', color: '#1976d2' }}>Loading equipment...</div>
+          ) : (
+            equipmentList
+              .filter(eq => eq.name && eq.name.trim() !== "") // Only show if name is not empty/null
+              .map(eq => (
+                <div className="equipment-row" style={{ alignItems: 'center', marginBottom: 16 }} key={eq.id}>
+                  <label className="equip-label" style={{ minWidth: 120 }}>{eq.name}:</label>
+                  <div style={{ display: 'flex', gap: 18 }}>
+                    <label className="radio-label" style={{ marginRight: 18 }}>
+                      <input
+                        type="radio"
+                        name={`status-${eq.name}`}
+                        value="Good"
+                        checked={equipmentState[eq.name]?.status === 'Good'}
+                        onChange={() => handleEquipmentRadio(eq.name, 'Good')}
+                      /> Good
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name={`status-${eq.name}`}
+                        value="Not Working"
+                        checked={equipmentState[eq.name]?.status === 'Not Working'}
+                        onChange={() => handleEquipmentRadio(eq.name, 'Not Working')}
+                      /> Not Working
+                    </label>
+                  </div>
                   <input
-                    type="radio"
-                    name={`status-${eq.name}`}
-                    value="Good"
-                    checked={equipmentState[eq.name]?.status === 'Good'}
-                    onChange={() => handleEquipmentRadio(eq.name, 'Good')}
-                  /> Good
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name={`status-${eq.name}`}
-                    value="Not Working"
-                    checked={equipmentState[eq.name]?.status === 'Not Working'}
-                    onChange={() => handleEquipmentRadio(eq.name, 'Not Working')}
-                  /> Not Working
-                </label>
-              </div>
-              <input
-                type="text"
-                name={`remarks-${eq.name}`}
-                placeholder="Remarks"
-                value={equipmentState[eq.name]?.remarks || ''}
-                onChange={e => handleEquipmentRemarks(eq.name, e.target.value)}
-                style={{ marginLeft: 18, flex: 1 }}
-              />
-            </div>
-          ))
-        )}
+                    type="text"
+                    name={`remarks-${eq.name}`}
+                    placeholder="Remarks"
+                    value={equipmentState[eq.name]?.remarks || ''}
+                    onChange={e => handleEquipmentRemarks(eq.name, e.target.value)}
+                    style={{ marginLeft: 18, flex: 1 }}
+                  />
+                </div>
+              ))
+          )
+        ) : null}
 
         <button
           onClick={handleNext}
@@ -503,7 +519,7 @@ const Checklist = () => {
       <div className="checklist-form" style={{ maxWidth: 800 }}>
         <div id="checklist-report-preview">
           <div className="report-header">
-            <div className="report-title">ABDULWAHED BINSHABIB REAL ESTATE</div>
+            <div className="report-title">ABDULWAHED AHMAD RASHED BIN SHABIB</div>
             <div style={{ fontSize: 18, color: '#1976d2', fontWeight: 700, marginTop: 4 }}>Checklist Report</div>
           </div>
           <div className="report-section" style={{ marginTop: 24 }}>
@@ -529,9 +545,9 @@ const Checklist = () => {
                 </tr>
                 <tr>
                   <th>Start</th>
-                  <td>{reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}</td>
+                  <td>{reportData.startDate ? new Date(reportData.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</td>
                   <th>End</th>
-                  <td>{reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}</td>
+                  <td>{reportData.endDate ? new Date(reportData.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</td>
                 </tr>
                 <tr>
                   <th>Visit Type</th>
@@ -574,11 +590,29 @@ const Checklist = () => {
             </div>
           </div>
           <div className="report-footer">
-            This is a system-generated report. &copy; AbdulWahed BinShabib Real Estate
+            This is a system-generated report. &copy; ABDULWAHED AHMAD RASHED BIN SHABIB
           </div>
         </div>
         <div style={{ display: 'flex', gap: 18, marginTop: 32, justifyContent: 'center' }}>
-          <button onClick={() => setShowReport(false)} style={{ background: '#bbdefb', color: '#1976d2', fontWeight: 700 }}>Back</button>
+          <button
+              onClick={() => {
+                setShowReport(false);
+                setForm(prev => ({
+                  ...prev,
+                  buildingId: '',
+                  unitId: '',
+                  tenantName: '',
+                  contractNo: '',
+                  contractId: '',
+                  startDate: '',
+                  endDate: '',
+                }));
+                setUnits([]); // Optionally clear units list
+              }}
+              style={{ background: '#bbdefb', color: '#1976d2', fontWeight: 700 }}
+          >     
+            Back
+          </button>
           <button onClick={handlePrint} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Preview & Print</button>
           <button onClick={handleDownloadPDF} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Download PDF</button>
           <button onClick={async () => {
@@ -586,7 +620,7 @@ const Checklist = () => {
             const doc = new jsPDF();
             doc.setFontSize(20);
             doc.setTextColor(25, 118, 210);
-            doc.text('ABDULWAHED BINSHABIB REAL ESTATE', 105, 18, { align: 'center' });
+            doc.text('ABDULWAHED AHMAD RASHED BIN SHABIB', 105, 18, { align: 'center' });
             doc.setFontSize(14);
             doc.setTextColor(0, 0, 0);
             doc.text('Checklist Report', 105, 28, { align: 'center' });
@@ -601,8 +635,8 @@ const Checklist = () => {
             doc.text(`Tenant: ${reportData.tenantName}`, 10, y);
             doc.text(`Contract No: ${reportData.contractNo}`, 140, y);
             y += 10;
-            doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString() : '—'}`, 10, y);
-            doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString() : '—'}`, 140, y);
+            doc.text(`Start: ${reportData.startDate ? new Date(reportData.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}`, 10, y);
+            doc.text(`End: ${reportData.endDate ? new Date(reportData.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}`, 140, y);
             y += 10;
             doc.text(`Visit Type: ${reportData.visitType}`, 10, y);
             y += 10;
@@ -624,7 +658,7 @@ const Checklist = () => {
             }
             doc.setFontSize(10);
             doc.setTextColor(25, 118, 210);
-            doc.text('This is a system-generated report. © AbdulWahed BinShabib Real Estate', 105, 285, { align: 'center' });
+            doc.text('This is a system-generated report. © ABDULWAHED AHMAD RASHED BIN SHABIB', 105, 285, { align: 'center' });
             // Get PDF as base64
             // SAFER: Use doc.output('datauristring') and extract base64 part
             let pdfBase64 = '';
@@ -689,7 +723,7 @@ const Checklist = () => {
   }
 
   const buildingName = buildings.find(b => String(b.id) === String(form.buildingId))?.name || '—';
-  const unitName = units.find(u => String(u.id) === String(form.unitId))?.flat_no || '—';
+  const unitName = units.find(u => String(u.flat_no) === String(form.unitId))?.flat_no || '—';
   // Step 2: Signature and Review
   if (step === 2 && !showReport){
   return (
@@ -703,8 +737,8 @@ const Checklist = () => {
           <div><b>Unit:</b> {unitName}</div>
           <div><b>Tenant:</b> {form.tenantName || '—'}</div>
           <div><b>Contract No:</b> {form.contractNo || '—'}</div>
-          <div><b>Start:</b> {form.startDate ? new Date(form.startDate).toLocaleDateString() : '—'}</div>
-          <div><b>End:</b> {form.endDate ? new Date(form.endDate).toLocaleDateString() : '—'}</div>
+          <div><b>Start:</b> {form.startDate ? new Date(form.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
+          <div><b>End:</b> {form.endDate ? new Date(form.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
           <div><b>Visit Type:</b> {form.visitType}</div>
           <div style={{ marginTop: 8 }}><b>Equipment:</b></div>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
@@ -736,6 +770,23 @@ const Checklist = () => {
           }}
         >
           Back
+        </button>
+                <button
+          type="button"
+          onClick={() => tenantsignatureref.current?.clear()}
+          style={{
+            marginTop: 12,
+            background: '#fff',
+            color: '#1976d2',
+            border: '1.5px solid #1976d2',
+            borderRadius: 8,
+            padding: '0.5rem 1.2rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            alignSelf: 'center',
+          }}
+        >
+          Clear Signature
         </button>
         <button
           onClick={handleNext1}
@@ -773,8 +824,8 @@ const Checklist = () => {
           <div><b>Unit:</b> {unitName}</div>
           <div><b>Tenant:</b> {form.tenantName || '—'}</div>
           <div><b>Contract No:</b> {form.contractNo || '—'}</div>
-          <div><b>Start:</b> {form.startDate ? new Date(form.startDate).toLocaleDateString() : '—'}</div>
-          <div><b>End:</b> {form.endDate ? new Date(form.endDate).toLocaleDateString() : '—'}</div>
+          <div><b>Start:</b> {form.startDate ? new Date(form.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
+          <div><b>End:</b> {form.endDate ? new Date(form.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</div>
           <div><b>Visit Type:</b> {form.visitType}</div>
           <div style={{ marginTop: 8 }}><b>Equipment:</b></div>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
