@@ -269,7 +269,7 @@ app.get('/api/tenant', async (req, res) => {
 // Login endpoint using Users table
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  console.log('Login request received:', { username, password });
+  // console.log('Login request received:', { username, password });
 
   try {
     await connect();
@@ -290,7 +290,7 @@ app.post('/api/login', async (req, res) => {
 
     const user = userResult.recordset[0];
     // console.log('Login successful for user:', user);
-    console.log('Logged‑in user record:', user);
+    // console.log('Logged‑in user record:', user);
     // Step 2: Get module access based on roleid
     const accessResult = await sql.query`
       SELECT distinct(m.App_id)
@@ -376,5 +376,6 @@ LEFT JOIN Tenants t ON ct.tenant_id = t.id
 // });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running`));
+//  on port ${PORT}
 
