@@ -58,7 +58,7 @@ const Checklist = () => {
   // Fetch buildings on mount
     useEffect(() => {
       setLoadingBuildings(true);
-      axios.get('http://localhost:3001/api/buildings')
+      axios.get('https://react-project-backend-4cfx.onrender.com/api/buildings')
         .then(res => {
           if (res.data.success) setBuildings(res.data.buildings);
           else setError('Failed to load buildings');
@@ -75,7 +75,7 @@ const Checklist = () => {
       return;
     }
     setLoadingUnits(true);
-    axios.get(`http://localhost:3001/api/units?buildingId=${form.buildingId}`)
+    axios.get(`https://react-project-backend-4cfx.onrender.com/api/units?buildingId=${form.buildingId}`)
       .then(res => {
         if (res.data.success) setUnits(res.data.units);
         else setError('Failed to load units');
@@ -92,7 +92,7 @@ const Checklist = () => {
       return;
     }
     setLoadingEquipment(true);
-    axios.get(`http://localhost:3001/api/equipment?buildingId=${form.buildingId}&unitId=${form.unitId}`)
+    axios.get(`https://react-project-backend-4cfx.onrender.com/api/equipment?buildingId=${form.buildingId}&unitId=${form.unitId}`)
       .then(res => {
         if (res.data.success) {
           // Map susec_name to name
@@ -159,7 +159,7 @@ const Checklist = () => {
       return;
     }
     // Always send both buildingId and unitId to backend
-    axios.get(`http://localhost:3001/api/unit-details?unit_id=${form.unitId}`)
+    axios.get(`https://react-project-backend-4cfx.onrender.com/api/unit-details?unit_id=${form.unitId}`)
       .then(res => {
         if (res.data.contract && res.data.tenant) {
           setForm(f => ({

@@ -37,7 +37,7 @@ export default function LoginForm() {
         localStorage.setItem('userAccess', JSON.stringify(res.data.access));
 
         // Navigate to /layout and replace history entry to prevent back button to login
-        navigate('/layout', { replace: true });
+        navigate('/maintenance', { replace: true });
       } else {
         setError('Invalid username or password');
       }
