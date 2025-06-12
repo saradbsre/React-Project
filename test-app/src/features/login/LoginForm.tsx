@@ -13,7 +13,7 @@ export default function LoginForm() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      navigate('/layout', { replace: true });
+      navigate('/maintenance', { replace: true });
     }
   }, [navigate]);
 
