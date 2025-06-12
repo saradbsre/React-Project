@@ -74,7 +74,7 @@ app.post('/api/send-report', async (req, res) => {
     if (!result.recordset.length || !result.recordset[0].email) {
       return res.status(400).json({ success: false, error: 'Tenant email not found for contract' });
     }
-    const tenantEmail = result.recordset[0].email;
+    // const tenantEmail = result.recordset[0].email;
     // Store the encrypted password and key in env for security
     const user = process.env.MAIL_USER;
     const encryptedPass = process.env.MAIL_PASS_ENC;
@@ -96,8 +96,8 @@ app.post('/api/send-report', async (req, res) => {
         }
       });
       await transporter.sendMail({
-        from: 'handover@binshabibgroup.ae',
-        to: tenantEmail,
+        from: user,
+        to: user,
         subject: subject || 'Checklist Report',
         text: text || 'Please find attached your checklist report.',
         attachments: [
