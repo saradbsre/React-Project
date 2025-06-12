@@ -75,6 +75,7 @@ app.post('/api/send-report', async (req, res) => {
     }
     const tenantEmail = result.recordset[0].email;
     // Store the encrypted password and key in env for security
+    const user = process.env.MAIL_USER;
     const encryptedPass = process.env.MAIL_PASS_ENC;
     const key = process.env.MAIL_KEY;
     console.log('MAIL_PASS_ENC:', encryptedPass, 'length:', encryptedPass ? encryptedPass.length : 0);
@@ -89,12 +90,12 @@ app.post('/api/send-report', async (req, res) => {
         port: 465,
         secure: true, // SSL
         auth: {
-          user: 'sarad@binshabibgroup.ae',
+          user: user,
           pass: password
         }
       });
       await transporter.sendMail({
-        from: 'sarad@binshabibgroup.ae',
+        from: 'handover@binshabibgroup.ae',
         to: tenantEmail,
         subject: subject || 'Checklist Report',
         text: text || 'Please find attached your checklist report.',
@@ -112,29 +113,6 @@ app.post('/api/send-report', async (req, res) => {
       console.error('Decryption or mail config error:', e);
       return res.status(500).json({ success: false, error: 'Decryption or mail config error: ' + e.message });
     }
-    const transporter = nodemailer.createTransport({
-      host: 'binshabibgroup.ae',
-      port: 465,
-      secure: true, // SSL
-      auth: {
-        user: 'sarad@binshabibgroup.ae',
-        pass: password
-      }
-    });
-    await transporter.sendMail({
-      from: 'sarad@binshabibgroup.ae',
-      to: tenantEmail,
-      subject: subject || 'Checklist Report',
-      text: text || 'Please find attached your checklist report.',
-      attachments: [
-        {
-          filename: 'Checklist_Report.pdf',
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
-    });
-    res.json({ success: true });
   } catch (err) {
     console.error('Email send error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -144,6 +122,7 @@ app.post('/api/send-report', async (req, res) => {
 // Get tenant and contract details for a unit
 app.get('/api/unit-details', async (req, res) => {
   const { unit_id } = req.query;
+  // console.log('Requested unit_id:', unit_id);
   try {
     await connect();
     // Get unit info and join to contract and tenant in one query
@@ -151,9 +130,9 @@ app.get('/api/unit-details', async (req, res) => {
       SELECT u.*, c.id AS contract_id, c.contract_no contract_number, c.start_date, c.end_date, c.tenant_id,
              t.id AS tenant_id, t.full_name, t.email, t.phone
       FROM Units u
-      LEFT JOIN Contracts c ON u.id = c.unit_id
+      LEFT JOIN Contracts c ON u.flat_no = c.unit_id
       LEFT JOIN Tenants t ON c.tenant_id = t.id
-      WHERE u.id = ${unit_id}
+      WHERE u.flat_no = ${unit_id}
     `;
     if (!result.recordset.length) return res.json({ tenant: null, contract: null });
     const row = result.recordset[0];
@@ -184,10 +163,19 @@ app.get('/api/unit-details', async (req, res) => {
 
 // Get equipment master list
 app.get('/api/equipment', async (req, res) => {
+  const { buildingId, unitId } = req.query;
+  if (!buildingId || !unitId) {
+    return res.status(400).json({ success: false, error: 'Missing buildingId or unitId' });
+  }
   try {
     await connect();
-    // Remove 'description' if it does not exist in your Equipment_Master table
-    const result = await sql.query`SELECT id, name FROM Equipment_Master`;
+    const result = await sql.query`
+      SELECT c.usec_name, b.susec_name
+      FROM units a
+      INNER JOIN SubUnitSection b ON a.purpose_type = b.code
+      INNER JOIN UnitSection c ON b.usec_code = c.usec_code
+      WHERE a.building_id = ${buildingId} AND a.flat_no = ${unitId}
+    `;
     res.json({ success: true, equipment: result.recordset });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -198,7 +186,7 @@ app.get('/api/equipment', async (req, res) => {
 app.get('/api/buildings', async (req, res) => {
   try {
     await connect();
-    const result = await sql.query`SELECT id, name FROM Buildings`;
+    const result = await sql.query`SELECT id, name FROM Buildings ORDER BY name`;
     res.json({ success: true, buildings: result.recordset });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -209,11 +197,14 @@ app.get('/api/buildings', async (req, res) => {
 app.get('/api/units', async (req, res) => {
   // Accept both building_id and buildingId for compatibility
   const building_id = req.query.building_id || req.query.buildingId;
+  // console.log('Requested building_id:', building_id);
   try {
     await connect();
     // Use correct column name for unit/flat number (now using 'flat_no')
     const result = await sql.query`
-      SELECT id, flat_no FROM Units WHERE building_id = ${building_id}
+      SELECT flat_no
+      FROM Units
+      where building_id = ${building_id}
     `;
     res.json({ success: true, units: result.recordset });
   } catch (err) {
@@ -225,6 +216,7 @@ app.get('/api/tenant', async (req, res) => {
   const unitId = req.query.unitId;
   const buildingId = req.query.buildingId;
   if (!unitId) return res.json({ success: false, error: 'Missing unitId' });
+  // console.log('Requested building_id:', unitId);
   try {
     await connect();
     // Join all relevant tables and filter by unit and (optionally) building
@@ -233,27 +225,27 @@ app.get('/api/tenant', async (req, res) => {
       result = await sql.query`
         SELECT 
           b.id AS building_id, b.name AS building_name, 
-          u.id AS unit_id, u.flat_no,
+          u.flat_no AS unit_id,
           c.contract_no contract_number, c.start_date, c.end_date, 
           t.full_name AS tenant_name
         FROM Units u
         JOIN Buildings b ON u.building_id = b.id
-        LEFT JOIN Contracts c ON u.id = c.unit_id
+        LEFT JOIN Contracts c ON u.flat_no = c.unit_id
         LEFT JOIN Tenants t ON c.tenant_id = t.id
-        WHERE u.id = ${unitId} AND b.id = ${buildingId}
+        WHERE u.flat_no = ${unitId} AND b.id = ${buildingId}
       `;
     } else {
       result = await sql.query`
         SELECT 
           b.id AS building_id, b.name AS building_name, 
-          u.id AS unit_id, u.flat_no,
+          u.flat_no AS unit_id,
           c.contract_no contract_number, c.start_date, c.end_date, 
           t.full_name AS tenant_name
         FROM Units u
         JOIN Buildings b ON u.building_id = b.id
-        LEFT JOIN Contracts c ON u.id = c.unit_id
+        LEFT JOIN Contracts c ON u.flat_no = c.unit_id
         LEFT JOIN Tenants t ON c.tenant_id = t.id
-        WHERE u.id = ${unitId}
+        WHERE u.flat_no = ${unitId}
       `;
     }
     console.log('API /api/tenant result:', result.recordset);
@@ -373,5 +365,16 @@ LEFT JOIN Tenants t ON ct.tenant_id = t.id
   }
 });
 
+const path = require('path');
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../test-app/dist')));
+
+// Catch-all handler: for any request that doesn't match an API route, send back React's index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../test-app/dist', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
