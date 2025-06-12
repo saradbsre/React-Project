@@ -689,7 +689,7 @@ const Checklist = () => {
             try {
               const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
                 pdfBase64,
-                contractId: form.contractId,
+                contractId: form.contractNo,
                 subject: 'Checklist Report',
                 text: 'Please find attached your checklist report.'
               });
@@ -725,7 +725,7 @@ const Checklist = () => {
   const buildingName = buildings.find(b => String(b.id) === String(form.buildingId))?.name || '—';
   const unitName = units.find(u => String(u.flat_no) === String(form.unitId))?.flat_no || '—';
   // Step 2: Signature and Review
-  if (step === 2 && !showReport){
+  if (step === 2 && !showReport) {
   return (
     <div className="checklist-form">
       <h2>Tenant Signature</h2>
@@ -751,27 +751,9 @@ const Checklist = () => {
           </ul>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginBottom: 16 }}>
         <SignatureCanvas penColor='black' canvasProps={{ width: 500, height: 180, className: 'sigCanvas' }} ref={tenantsignatureref} />
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 24, width: '100%', maxWidth: 320, alignSelf: 'center' }}>
         <button
-          onClick={() => setStep(1)}
-          style={{
-            width: '50%',
-            fontSize: '1.1rem',
-            fontWeight: 700,
-            borderRadius: 10,
-            boxShadow: '0 2px 12px #90caf933',
-            background: '#90caf9',
-            color: '#1976d2',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          Back
-        </button>
-                <button
           type="button"
           onClick={() => tenantsignatureref.current?.clear()}
           style={{
@@ -787,6 +769,24 @@ const Checklist = () => {
           }}
         >
           Clear Signature
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8, width: '100%', maxWidth: 320, alignSelf: 'center' }}>
+        <button
+          onClick={() => setStep(1)}
+          style={{
+            width: '50%',
+            fontSize: '1.1rem',
+            fontWeight: 700,
+            borderRadius: 10,
+            boxShadow: '0 2px 12px #90caf933',
+            background: '#90caf9',
+            color: '#1976d2',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Back
         </button>
         <button
           onClick={handleNext1}
@@ -813,6 +813,7 @@ const Checklist = () => {
 
   // Step 3: Signature and Review
   // Always get the building and unit name from the lists using the current form.buildingId and form.unitId
+  if (step === 3 && !showReport) {
   return (
     <div className="checklist-form">
       <h2>Technician Signature</h2>
@@ -838,10 +839,31 @@ const Checklist = () => {
           </ul>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-        <SignatureCanvas penColor='black' canvasProps={{ width: 500, height: 180, className: 'sigCanvas' }} ref={techniciansignatureref} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+        <SignatureCanvas
+          penColor='black'
+          canvasProps={{ width: 500, height: 180, className: 'sigCanvas' }}
+          ref={techniciansignatureref}
+        />
+        <button
+          type="button"
+          onClick={() => techniciansignatureref.current?.clear()}
+          style={{
+            marginTop: 12,
+            background: '#fff',
+            color: '#1976d2',
+            border: '1.5px solid #1976d2',
+            borderRadius: 8,
+            padding: '0.5rem 1.2rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            alignSelf: 'center',
+          }}
+        >
+          Clear Signature
+        </button>
       </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 24, width: '100%', maxWidth: 320, alignSelf: 'center' }}>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8, width: '100%', maxWidth: 320, alignSelf: 'center' }}>
         <button
           onClick={() => setStep(2)}
           style={{
@@ -879,6 +901,7 @@ const Checklist = () => {
       </div>
     </div>
   );
+}
 };
 
 export default Checklist;
