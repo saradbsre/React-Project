@@ -109,37 +109,47 @@ function SignatureStepSummary({
                 });
                 return acc;
               }, {} as Record<string, Array<{ name: string; susec_name?: string; status: string; remarks: string }>>)
-            ).map(([usecName, items]) => (
-              <div key={usecName} style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem', margin: '12px 0 4px 0', color: '#000' }}>
-                  {usecName}
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>SRNO</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>ITEM DES</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>UNIT</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>QTY</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((eq, idx) => (
-                      <tr key={eq.susec_name || eq.name}>
+            ).map(([usecName, items]) => {
+              // Filter items according to your logic
+              const filteredItems = items.filter(
+                eq =>
+                  eq.status !== 'Good' ||
+                  (eq.status === 'Good' && eq.remarks && eq.remarks.trim() !== '')
+              );
+              // Only render the table if there are filtered items
+              if (filteredItems.length === 0) return null;
+              return (
+                <div key={usecName} style={{ marginBottom: 24 }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem', margin: '12px 0 4px 0', color: '#000' }}>
+                    {usecName}
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>Srno</th>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>Item Des</th>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>Unit</th>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>Qty</th>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
+                        <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredItems.map((eq, idx) => (
+                        <tr key={eq.susec_name || eq.name}>
                           <td style={{ border: '1px solid #000', padding: 6, width: '1%' }}>{idx + 1}</td>
                           <td style={{ border: '1px solid #000', padding: 6, width: '40%' }}>{eq.susec_name || eq.name}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '14%' }}>1 SQM</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '14%' }}>SQM</td>
                           <td style={{ border: '1px solid #000', padding: 6, width: '10%' }}>1</td>
                           <td style={{ border: '1px solid #000', padding: 6, width: '15%' }}>{eq.status || '—'}</td>
                           <td style={{ border: '1px solid #000', padding: 6, width: '20%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -787,31 +797,31 @@ const grouped = reportData?.equipment
           <table className="report-table" style={{ width: '100%', marginBottom: 18, borderCollapse: 'collapse' }}>
             <tbody>
               <tr>
-                <th style={{ width: 160, color: '#000', textAlign: 'left', border: '1px solid #000' }}>Date</th>
-                <td style={{ textAlign: 'left', border: '1px solid #000' }}>{formatDate_ddMMMyyyy_hhmmtt(reportData.date)}</td>
-                <th style={{ width: 160, color: '#000', textAlign: 'left', border: '1px solid #000' }}>Technician</th>
-                <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.username}</td>
+                <th style={{ width: 160, color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Date</th>
+                <td style={{ textAlign: 'left', border: '1px solid #000' }} colSpan={3}>{formatDate_ddMMMyyyy_hhmmtt(reportData.date)}</td>
+                {/* <th style={{ width: 160, color: '#000', textAlign: 'left', border: '1px solid #000' }}>Technician</th>
+                <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.username}</td> */}
               </tr>
               <tr>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Building</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Building</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.buildingName}</td>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Unit</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Unit</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.unitName}</td>
               </tr>
               <tr>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Tenant</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Tenant</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.tenantName}</td>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Contract No</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Contract No</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.contractNo}</td>
               </tr>
               <tr>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Start</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Start</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.startDate ? formatDate_ddMMMyyyy(reportData.startDate) : '—'}</td>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>End</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>End</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }}>{reportData.endDate ? formatDate_ddMMMyyyy(reportData.endDate) : '—'}</td>
               </tr>
               <tr>
-                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000' }}>Visit Type</th>
+                <th style={{ color: '#000', textAlign: 'left', border: '1px solid #000', paddingLeft: 6 }}>Visit Type</th>
                 <td style={{ textAlign: 'left', border: '1px solid #000' }} colSpan={3}>{reportData.visitType}</td>
               </tr>
             </tbody>
@@ -827,43 +837,53 @@ const grouped = reportData?.equipment
                   }}
                 />
               </div>
-              {Object.entries(grouped).map(([usecName, items]) => (
-                <div key={usecName} style={{ marginBottom: 24 }}>
-                  <div style={{ fontWeight: 700, fontSize: '1.1rem', margin: '12px 0 4px 0', color: '#000' }}>
-                    {usecName}
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
-                    <thead>
-                      <tr>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>SRNO</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>ITEM DES</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>UNIT</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>QTY</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((eq, idx) => (
-                        <tr key={eq.susec_name || eq.name}>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '1%' }}>{idx + 1}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '40%' }}>{eq.susec_name || eq.name}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '14%' }}>1 SQM</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '10%' }}>1</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '15%' }}>{eq.status || '—'}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '20%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
+              {Object.entries(grouped).map(([usecName, items]) => {
+                // Filter items according to your logic
+                const filteredItems = items.filter(
+                  eq =>
+                    (eq.status !== 'Good' || (eq.status === 'Good' && eq.remarks && eq.remarks.trim() !== '')) &&
+                    (eq.susec_name || eq.name)
+                );
+                // Only render the table if there are filtered items
+                if (filteredItems.length === 0) return null;
+                return (
+                  <div key={usecName} style={{ marginBottom: 24 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1.1rem', margin: '12px 0 4px 0', color: '#000' }}>
+                      {usecName}
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>Srno</th>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>Item Des</th>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>Unit</th>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>Qty</th>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
+                          <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+                      </thead>
+                      <tbody>
+                        {filteredItems.map((eq, idx) => (
+                          <tr key={eq.susec_name || eq.name}>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '1%', textAlign: 'center' }}>{idx + 1}</td>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '40%' }}>{eq.susec_name || eq.name}</td>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '14%', textAlign: 'center' }}>SQM</td>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '10%', textAlign: 'center' }}>1</td>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '15%' }}>{eq.status || '—'}</td>
+                            <td style={{ border: '1px solid #000', padding: 6, width: '20%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', flexDirection: 'row', gap: 32, marginTop: 18, width: '100%' }}>
               {/* Tenant Signature: label and box left-aligned */}
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <b>ACCEPTED BY:</b>
-                <b>Tenant Signature:</b>
+                <b>{reportData.tenantName || 'Tenant'}</b>
                 {reportData.tenantsignature && (
                   <img
                     src={reportData.tenantsignature}
@@ -876,7 +896,7 @@ const grouped = reportData?.equipment
               {/* Technician Signature: label left, box right */}
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
               <b style={{ textAlign: 'right', display: 'block', width: '100%' }}>PREPARED BY:</b>
-              <b style={{ textAlign: 'right', display: 'block', width: '100%' }}>Technician Signature:</b>
+              <b style={{ textAlign: 'right', display: 'block', width: '100%' }}>{reportData.username || 'Technician'}:</b>
               <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
                 {reportData.techniciansignature && (
                   <img
