@@ -28,7 +28,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' }));
 
-app.get('/testconnection', async (req, res) => {
+app.get('/onnecttestcion', async (req, res) => {
   try {
     const pool = await connect();
     const result = await pool.request().query('SELECT 1 AS test');
@@ -372,12 +372,12 @@ LEFT JOIN Tenants t ON ct.tenant_id = t.id
 
 
 // // Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../test-app/dist')));
+// app.use(express.static(path.join(__dirname, '../test-app/dist')));
 
-// // Catch-all handler: for any request that doesn't match an API route, send back React's index.html
-app.get('/*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../test-app/dist', 'index.html'));
-});
+// // // Catch-all handler: for any request that doesn't match an API route, send back React's index.html
+// app.get('/*', (req, res) => {
+//   res.sendFile(path.join(__dirname, '../test-app/dist', 'index.html'));
+// });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running`));
