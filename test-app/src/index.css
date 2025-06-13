@@ -249,3 +249,14 @@
   width: auto !important;
   word-break: break-word;
 }
+
+#checklist-report-preview,
+#checklist-report-preview * {
+  font-size: 9px !important;
+}
+
+/* Checklist Report label/title should be 11px */
+#checklist-report-preview .report-title {
+  font-size: 11px !important;
+  font-weight: bold;
+}

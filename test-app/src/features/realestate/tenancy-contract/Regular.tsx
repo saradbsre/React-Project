@@ -379,7 +379,7 @@ const grouped = reportData?.equipment
             contractNo: res.data.contract.contract_number || '',
             startDate: res.data.contract.start_date || '',
             endDate: res.data.contract.end_date || '',
-            contractId: res.data.contract.id || ''
+            contractId: res.data.contract.contract_no || ''
           }));
         } else {
           setForm(f => ({ ...f, tenantName: '', contractNo: '', startDate: '', endDate: '', contractId: '' }));
@@ -442,7 +442,7 @@ const grouped = reportData?.equipment
     try {
       await axios.post('https://react-project-backend-4cfx.onrender.com/api/checklist', {
         unit: form.unitId,
-        contract: form.contractId, // Now using contract_id
+        contract: form.contractNo, // Now using contract_id
         visitType: form.visitType,
         equipment: equipmentState,
         techniciansignature,
@@ -486,11 +486,7 @@ const grouped = reportData?.equipment
       // Do NOT reset buildingId and unitId so names can be shown in summary
       setForm(prev => ({
         ...prev,
-        tenantName: '',
-        contractNo: '',
-        startDate: '',
-        endDate: '',
-        visitType: 'Move-In',
+        visitType: 'Move-In', // Only reset what you don't need in the report
       }));
     } catch {
       setError('Submission failed');
@@ -768,18 +764,18 @@ const grouped = reportData?.equipment
             style={{ width: '100%', maxWidth: 1100, margin: '0 auto', display: 'block' }}
           />
           {/* Remove the line above Checklist Report */}
-          <div
-            style={{
-              fontSize: 18,
-              color: '#000', // Make Checklist Report black
-              fontWeight: 700,
-              marginTop: 12,
-              textAlign: 'center',
-              fontFamily: '"Times New Roman", Times, serif'
-            }}
-          >
-            Checklist Report
-          </div>
+        <div
+          className="report-title"
+          style={{
+            color: '#000',
+            fontWeight: 700,
+            marginTop: 12,
+            textAlign: 'center',
+            fontFamily: '"Times New Roman", Times, serif'
+          }}
+        >
+          Checklist Report
+        </div>
         </div>
           <div className="report-section" style={{ marginTop: 24 }}>
           <table className="report-table" style={{ width: '100%', marginBottom: 18, borderCollapse: 'collapse' }}>
@@ -981,12 +977,12 @@ const grouped = reportData?.equipment
             // Send contractId and pdfBase64 to backend, backend will fetch tenant email
             // Debug log
             console.log('Sending to /api/send-report:', {
-              contractId: form.contractId,
-              pdfBase64Preview: pdfBase64 ? pdfBase64.substring(0, 100) + '...' : pdfBase64,
-              pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
+              contractId: form.contractNo,
+              // pdfBase64Preview: pdfBase64 ? pdfBase64.substring(0, 100) + '...' : pdfBase64,
+              // pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
             });
             try {
-              const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
+              const resp = await axios.post('http://localhost:3001/api/send-report', {
                 pdfBase64,
                 contractId: form.contractNo,
                 subject: 'Checklist Report',
@@ -995,6 +991,7 @@ const grouped = reportData?.equipment
               if (resp.data.success) {
                 alert('Report sent successfully!');
               } else {
+                // console.log(contractId)
                 alert('Failed to send report: ' + (resp.data.error || 'Unknown error'));
               }
             } catch (err) {
