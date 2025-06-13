@@ -1,7 +1,7 @@
 // Only require nodemailer and crypto once at the top of the file
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-// const path = require('path');
+const path = require('path');
 
 // Utility to decrypt password (simple AES for demonstration)
 function decryptPassword(encrypted, key) {
@@ -177,6 +177,7 @@ app.get('/api/equipment', async (req, res) => {
       INNER JOIN UnitSection c ON b.usec_code = c.usec_code
       WHERE a.building_id = ${buildingId} AND a.flat_no = ${unitId}
     `;
+    // Return both usec_name and susec_name for each equipment
     res.json({ success: true, equipment: result.recordset });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -368,13 +369,13 @@ LEFT JOIN Tenants t ON ct.tenant_id = t.id
 
 
 
-// Serve static files from the React app
-// app.use(express.static(path.join(__dirname, '../test-app/dist')));
+// // Serve static files from the React app
+app.use(express.static(path.join(__dirname, '../test-app/dist')));
 
-// Catch-all handler: for any request that doesn't match an API route, send back React's index.html
-// app.get('/*', (req, res) => {
-//   res.sendFile(path.join(__dirname, '../test-app/dist', 'index.html'));
-// });
+// // Catch-all handler: for any request that doesn't match an API route, send back React's index.html
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../test-app/dist', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running`));
