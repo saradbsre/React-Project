@@ -10,10 +10,10 @@ function App() {
     <Routes>
       {/* Public login route */}
       <Route path="/" element={<LoginForm />} />
-    
+
       {/* Protected routes inside Layout */}
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
-        <Route path="maintenance" element={<TCRegular />} />
+        <Route path="moveinmoveout" element={<TCRegular />} />
         <Route path="realestate" element={<RealEstate />} />
       </Route>
     </Routes>

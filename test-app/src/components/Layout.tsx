@@ -3,9 +3,9 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import logo from '../assets/AWSLogo.png';
 
 const modules = [
-  { name: 'Movein/Moveout', path: 'maintenance', accessKey: 'MNT' },
+  { name: 'Maintenance', path: 'maintenance', accessKey: 'MNT' },
   { name: 'Tenant', path: 'tenant', accessKey: 'TNT' },
-  { name: 'Movein/Moveout', path: 'moveinout', accessKey: 'MIO' },
+  { name: 'Movein/Moveout', path: 'moveinmoveout', accessKey: 'MIO' },
 ];
 
 export default function Layout() {

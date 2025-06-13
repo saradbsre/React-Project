@@ -13,7 +13,7 @@ export default function LoginForm() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      navigate('/maintenance', { replace: true });
+      navigate('/moveinmoveout', { replace: true });
     }
   }, [navigate]);
 
@@ -37,7 +37,7 @@ export default function LoginForm() {
         localStorage.setItem('userAccess', JSON.stringify(res.data.access));
 
         // Navigate to /layout and replace history entry to prevent back button to login
-        navigate('/maintenance', { replace: true });
+        navigate('/moveinmoveout', { replace: true });
       } else {
         setError('Invalid username or password');
       }
