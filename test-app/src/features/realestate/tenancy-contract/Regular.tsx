@@ -117,17 +117,23 @@ function SignatureStepSummary({
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
                   <thead>
                     <tr>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '50%' }}>Equipment</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Status</th>
-                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '30%' }}>Remarks</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>SRNO</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>ITEM DES</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>UNIT</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>QTY</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map(eq => (
+                    {items.map((eq, idx) => (
                       <tr key={eq.susec_name || eq.name}>
-                        <td style={{ border: '1px solid #000', padding: 6, width: '50%' }}>{eq.susec_name || eq.name}</td>
-                        <td style={{ border: '1px solid #000', padding: 6, width: '20%' }}>{eq.status || '—'}</td>
-                        <td style={{ border: '1px solid #000', padding: 6, width: '30%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '1%' }}>{idx + 1}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '40%' }}>{eq.susec_name || eq.name}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '14%' }}>1 SQM</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '10%' }}>1</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '15%' }}>{eq.status || '—'}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '20%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -829,17 +835,23 @@ const grouped = reportData?.equipment
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
                     <thead>
                       <tr>
-                        <th style={{ border: '1px solid #000', padding: 6, background: '#f5fafd', color: '#000', width: '50%' }}>Equipment</th>
-                        <th style={{ border: '1px solid #000', padding: 6, background: '#f5fafd', color: '#000', width: '20%' }}>Status</th>
-                        <th style={{ border: '1px solid #000', padding: 6, background: '#f5fafd', color: '#000', width: '30%' }}>Remarks</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '5%' }}>SRNO</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '40%' }}>ITEM DES</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>UNIT</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '10%' }}>QTY</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '15%' }}>Status</th>
+                      <th style={{ border: '1px solid #000', padding: 6, background: '#e3f2fd', color: '#000', width: '20%' }}>Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map(eq => (
+                      {items.map((eq, idx) => (
                         <tr key={eq.susec_name || eq.name}>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '50%' }}>{eq.susec_name || eq.name}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '20%' }}>{eq.status || '—'}</td>
-                          <td style={{ border: '1px solid #000', padding: 6, width: '30%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '1%' }}>{idx + 1}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '40%' }}>{eq.susec_name || eq.name}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '14%' }}>1 SQM</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '10%' }}>1</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '15%' }}>{eq.status || '—'}</td>
+                          <td style={{ border: '1px solid #000', padding: 6, width: '20%', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{eq.remarks || ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -850,6 +862,7 @@ const grouped = reportData?.equipment
             <div style={{ display: 'flex', flexDirection: 'row', gap: 32, marginTop: 18, width: '100%' }}>
               {/* Tenant Signature: label and box left-aligned */}
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <b>ACCEPTED BY:</b>
                 <b>Tenant Signature:</b>
                 {reportData.tenantsignature && (
                   <img
@@ -862,6 +875,7 @@ const grouped = reportData?.equipment
               </div>
               {/* Technician Signature: label left, box right */}
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <b style={{ textAlign: 'right', display: 'block', width: '100%' }}>PREPARED BY:</b>
               <b style={{ textAlign: 'right', display: 'block', width: '100%' }}>Technician Signature:</b>
               <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
                 {reportData.techniciansignature && (
@@ -982,7 +996,7 @@ const grouped = reportData?.equipment
               // pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
             });
             try {
-              const resp = await axios.post('http://localhost:3001/api/send-report', {
+              const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
                 pdfBase64,
                 contractId: form.contractNo,
                 subject: 'Checklist Report',
