@@ -42,11 +42,13 @@ app.get('/testconnection', async (req, res) => {
 // API to send checklist PDF to tenant
 app.post('/api/send-report', async (req, res) => {
   // Debug log for incoming request body
-  console.log('POST /api/send-report body:', req.body);
+  // console.log('POST /api/send-report body:', req.body);
   const pdfBase64 = req.body.pdfBase64;
   const contractId = req.body.contractId;
   const subject = req.body.subject;
   const text = req.body.text;
+
+  console.log(contractId)
   if (!pdfBase64 || typeof pdfBase64 !== 'string' || !pdfBase64.trim()) {
     return res.status(400).json({ success: false, error: 'Missing or invalid PDF data', received: req.body });
   }
@@ -65,15 +67,15 @@ app.post('/api/send-report', async (req, res) => {
   try {
     await connect();
     // Get tenant email from contract and tenant master
-    const result = await sql.query`
-      SELECT t.email
-      FROM Contracts c
-      JOIN Tenants t ON c.tenant_id = t.id
-      WHERE c.id = ${contractId}
-    `;
-    if (!result.recordset.length || !result.recordset[0].email) {
-      return res.status(400).json({ success: false, error: 'Tenant email not found for contract' });
-    }
+    // const result = await sql.query`
+    //   SELECT t.email
+    //   FROM Contracts c
+    //   JOIN Tenants t ON c.tenant_id = t.id
+    //   WHERE c.id = ${contractId}
+    // `;
+    // if (!result.recordset.length || !result.recordset[0].email) {
+    //   return res.status(400).json({ success: false, error: 'Tenant email not found for contract' });
+    // }
     // const tenantEmail = result.recordset[0].email;
     // Store the encrypted password and key in env for security
     const user = process.env.MAIL_USER;
