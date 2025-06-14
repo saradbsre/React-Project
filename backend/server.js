@@ -2,6 +2,8 @@
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() }); // Store files in memory as Buffer
 
 // Utility to decrypt password (simple AES for demonstration)
 function decryptPassword(encrypted, key) {
@@ -28,7 +30,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' }));
 
-app.get('/onnecttestcion', async (req, res) => {
+app.get('/testconnection', async (req, res) => {
   try {
     const pool = await connect();
     const result = await pool.request().query('SELECT 1 AS test');
@@ -48,7 +50,7 @@ app.post('/api/send-report', async (req, res) => {
   const subject = req.body.subject;
   const text = req.body.text;
 
-  console.log(contractId)
+  // console.log(contractId)
   if (!pdfBase64 || typeof pdfBase64 !== 'string' || !pdfBase64.trim()) {
     return res.status(400).json({ success: false, error: 'Missing or invalid PDF data', received: req.body });
   }
@@ -81,11 +83,11 @@ app.post('/api/send-report', async (req, res) => {
     const user = process.env.MAIL_USER;
     const encryptedPass = process.env.MAIL_PASS_ENC;
     const key = process.env.MAIL_KEY;
-    console.log('MAIL_PASS_ENC:', encryptedPass, 'length:', encryptedPass ? encryptedPass.length : 0);
-    console.log('MAIL_KEY:', key, 'length:', key ? key.length : 0);
+    // console.log('MAIL_PASS_ENC:', encryptedPass, 'length:', encryptedPass ? encryptedPass.length : 0);
+    // console.log('MAIL_KEY:', key, 'length:', key ? key.length : 0);
     try {
       const keyBuffer = Buffer.from(key, 'hex');
-      console.log('Buffer.from(key, "hex") length:', keyBuffer.length);
+      // console.log('Buffer.from(key, "hex") length:', keyBuffer.length);
       const password = decryptPassword(encryptedPass, key);
       // continue as normal
       const transporter = nodemailer.createTransport({
@@ -252,7 +254,7 @@ app.get('/api/tenant', async (req, res) => {
         WHERE u.flat_no = ${unitId}
       `;
     }
-    console.log('API /api/tenant result:', result.recordset);
+    // console.log('API /api/tenant result:', result.recordset);
     if (!result.recordset.length) {
       return res.json({ success: false, error: 'No contract found for this unit/building' });
     }
@@ -288,7 +290,7 @@ app.post('/api/login', async (req, res) => {
     `;
 
     if (userResult.recordset.length === 0) {
-      console.log('Login failed: Invalid username or password.');
+      // console.log('Login failed: Invalid username or password.');
       return res.json({ success: false, message: 'Invalid username or password.' });
     }
 
@@ -319,20 +321,39 @@ app.post('/api/login', async (req, res) => {
     res.json({ success: true, token, username: user.Uname, role: user.roleid, access: accessKeys });
 
   } catch (err) {
-    console.error('Error during login:', err);
+    // console.error('Error during login:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 
-app.post('/api/checklist', async (req, res) => {
+app.post('/api/checklist', upload.fields([
+  { name: 'images', maxCount: 5 },
+  { name: 'videos', maxCount: 5 }
+]), async (req, res) => {
   const { contract, visitType, equipment, tenantsignature, techniciansignature, date } = req.body;
   try {
     await connect();
-    await sql.query`
+    // Insert checklist and get its ID
+    const checklistResult = await sql.query`
       INSERT INTO checklists (contract_id, visitType, equipment, techsignature, tenantsignature, created_at)
-      VALUES (${contract}, ${visitType}, ${JSON.stringify(equipment)}, ${techniciansignature}, ${tenantsignature}, ${date})
+      OUTPUT INSERTED.checklistid
+      VALUES (${contract}, ${visitType}, ${equipment}, ${techniciansignature}, ${tenantsignature}, ${date})
     `;
+    const checklistId = checklistResult.recordset[0].checklistid;
+
+    // Save files in checklist_files table
+    const files = [
+      ...(req.files.images || []).map(f => ({ ...f, type: 'image' })),
+      ...(req.files.videos || []).map(f => ({ ...f, type: 'video' }))
+    ];
+    for (const file of files) {
+      await sql.query`
+        INSERT INTO checklist_files (checklist_id, file_data, file_mime, file_name, file_type)
+        VALUES (${checklistId}, ${file.buffer}, ${file.mimetype}, ${file.originalname}, ${file.type})
+      `;
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
