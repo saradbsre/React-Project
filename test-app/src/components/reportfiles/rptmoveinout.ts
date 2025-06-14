@@ -7,19 +7,17 @@ export function handlePrint(previewElementId: string = 'checklist-report-preview
   const printContents = previewElement.innerHTML;
   const win = window.open('', '', 'width=900,height=700');
   if (win) {
-      win.document.write(`
-        <html>
-          <head>
-            <title>Checklist Report</title>
-            <link rel="stylesheet" type="text/css" href="/index.css">
-            <style>
-              body { background: #f5fafd; margin: 0; padding: 0; }
-              /* You can still add print-specific overrides here if needed */
-            </style>
-          </head>
-          <body>${printContents}</body>
-        </html>
-      `);
+    // Create the document structure
+    win.document.head.innerHTML = `
+      <title>Checklist Report</title>
+      <link rel="stylesheet" type="text/css" href="/index.css">
+      <style>
+        body { background: #f5fafd; margin: 0; padding: 0; }
+      </style>
+    `;
+    const body = win.document.body;
+    body.innerHTML = printContents;
+
     win.document.close();
     win.focus();
     setTimeout(() => {

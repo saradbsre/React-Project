@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import bsreheader from '../../../assets/bsreheader.png';
 import { handlePrint } from '../../../components/reportfiles/rptmoveinout';
 
+
   type Unit = { flat_no: string };
   type Building = { id: string; name: string };
   type Equipment = { id: string; name: string; usec_name: string; susec_name?: string };
@@ -88,7 +89,7 @@ function SignatureStepSummary({
       <h2>{title}</h2>
       {error && <div style={{ color: 'red', marginBottom: 10 }}>{error}</div>}
       <div style={{ marginBottom: 18, width: '100%' }}>
-        <h3 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 8 }}>Checklist Summary</h3>
+        <h3 style={{ color: '#1976d2', fontWeight: 700, marginBottom: 8 }}>{form.visitType} Checklist Summary</h3>
         <div style={{ background: '#e3f2fd', border: '1.5px solid #90caf9', borderRadius: 8, padding: '1rem', marginBottom: 10 }}>
           <div><b>Building:</b> {buildingName}</div>
           <div><b>Unit:</b> {unitName}</div>
@@ -263,6 +264,8 @@ const Checklist = () => {
   acc[eq.usec_name].push(eq);
   return acc;
 }, {} as Record<string, typeof equipmentList>);
+  const [attachmentPopup, setAttachmentPopup] = useState<{ open: boolean; eqKey: string | null; type: 'image' | 'video' | null }>({ open: false, eqKey: null, type: null });
+  const [attachments, setAttachments] = useState<{ images: File[]; videos: File[] }>({ images: [], videos: [] });
 
 const grouped = reportData?.equipment
   ? reportData.equipment.reduce((acc: { [key: string]: Array<{ name: string; status: string; remarks: string; susec_name?: string }> }, eq) => {
@@ -278,7 +281,78 @@ const grouped = reportData?.equipment
 
   // type EquipmentState = { [key: string]: { status: string; remarks: string } } & { [key: number]: { status: string; remarks: string } };
 
+      function renderAttachmentPopup() {
+        if (!attachmentPopup.open) return null;
+        const isImage = attachmentPopup.type === 'image';
+        const files = isImage ? attachments.images : attachments.videos;
+        const maxFiles = 5;
 
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          }}>
+            <div style={{
+              background: '#fff', padding: 24, borderRadius: 10, minWidth: 320, boxShadow: '0 4px 24px #1976d244'
+            }}>
+              <h3 style={{ marginBottom: 16, color: '#1976d2' }}>
+                Attach up to 5 {isImage ? 'Images' : 'Videos'}
+              </h3>
+              <input
+                type="file"
+                accept={isImage ? 'image/*' : 'video/*'}
+                multiple
+                onChange={e => {
+                  if (e.target.files) {
+                    const selected = Array.from(e.target.files).slice(0, maxFiles - files.length);
+                    setAttachments(prev => ({
+                      ...prev,
+                      [isImage ? 'images' : 'videos']: [...prev[isImage ? 'images' : 'videos'], ...selected].slice(0, maxFiles)
+                    }));
+                  }
+                }}
+                disabled={files.length >= maxFiles}
+              />
+              <div style={{ margin: '10px 0', fontSize: 13 }}>
+                {files.length > 0 && (
+                  <ul style={{ paddingLeft: 18 }}>
+                    {files.map((file, idx) => (
+                      <li key={idx}>
+                        {file.name}
+                        <button
+                          style={{
+                            marginLeft: 8,
+                            color: '#d32f2f',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setAttachments(prev => ({
+                              ...prev,
+                              [isImage ? 'images' : 'videos']: prev[isImage ? 'images' : 'videos'].filter((_, i) => i !== idx)
+                            }));
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div style={{ marginTop: 18, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setAttachmentPopup({ open: false, eqKey: null, type: null })}
+                  style={{ background: '#90caf9', color: '#1976d2', border: 'none', borderRadius: 6, padding: '0.5rem 1rem', fontWeight: 700 }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
   // Fetch buildings on mount
     useEffect(() => {
@@ -452,22 +526,33 @@ const grouped = reportData?.equipment
       return;
     }
     setSubmitLoading(true);
-    // const signature = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
-    const tenantsignature = tenantSignatureData
+    const tenantsignature = tenantSignatureData;
     const techniciansignature = techniciansignatureref.current ? techniciansignatureref.current.toDataURL('image/png') : '';
     try {
-      await axios.post('https://react-project-backend-4cfx.onrender.com/api/checklist', {
-        unit: form.unitId,
-        contract: form.contractNo, // Now using contract_id
-        visitType: form.visitType,
-        equipment: equipmentState,
-        techniciansignature,
-        tenantsignature,
-        date: new Date().toISOString()
+      // Use FormData for file and data upload
+      const formData = new FormData();
+      formData.append('unit', form.unitId);
+      formData.append('contract', form.contractNo);
+      formData.append('visitType', form.visitType);
+      formData.append('equipment', JSON.stringify(equipmentState));
+      formData.append('techniciansignature', techniciansignature);
+      formData.append('tenantsignature', tenantsignature);
+      formData.append('date', new Date().toISOString());
+
+      // Attach images
+      attachments.images.forEach(file => {
+        formData.append('images', file, file.name);
       });
-      // setSuccess('Checklist submitted successfully!');
+      // Attach videos
+      attachments.videos.forEach(file => {
+        formData.append('videos', file, file.name);
+      });
+
+      await axios.post('https://react-project-backend-4cfx.onrender.com/api/checklist', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
       setError('');
-      // Prepare report data for preview
       setReportData({
         buildingName,
         unitName,
@@ -488,7 +573,6 @@ const grouped = reportData?.equipment
       });
       setShowReport(true);
       setStep(1);
-      // Only reset equipment state if equipmentList is available
       if (equipmentList && equipmentList.length > 0) {
         const initial: Record<string, { status: string; remarks: string }> = {};
         equipmentList.forEach(eq => {
@@ -496,13 +580,11 @@ const grouped = reportData?.equipment
         });
         setEquipmentState(initial);
       }
-      // Clear signature pad
       if (tenantsignatureref.current) tenantsignatureref.current.clear();
       if (techniciansignatureref.current) techniciansignatureref.current.clear();
-      // Do NOT reset buildingId and unitId so names can be shown in summary
       setForm(prev => ({
         ...prev,
-        visitType: 'Move-In', // Only reset what you don't need in the report
+        visitType: 'Move-In',
       }));
     } catch {
       setError('Submission failed');
@@ -625,13 +707,13 @@ const grouped = reportData?.equipment
   //   doc.save('Checklist_Report.pdf');
   // };
 
-
-
   // Step 1: Checklist Form
   if (step === 1 && !showReport) {
     return (
+      <>
+      {renderAttachmentPopup()}
       <div className="checklist-form" style={{ maxWidth: 800, fontFamily: '"Times New Roman", Times, serif' }}>
-        <h2>Equipment Checklist</h2>
+        <h2>{form.visitType} Checklist</h2>
         {success && <div style={{ color: '#388e3c', background: '#e8f5e9', border: '1.5px solid #66bb6a', borderRadius: 8, padding: '0.7rem 1rem', marginBottom: 12, fontWeight: 700, fontSize: '1.08rem', textAlign: 'center' }}>{success}</div>}
         {error && <div style={{ color: 'red', marginBottom: 10 }}>{error}</div>}
         <label>Building</label>
@@ -743,6 +825,40 @@ const grouped = reportData?.equipment
           )
         ) : null}
 
+          {/* Attachments section */}
+          <div style={{ display: 'flex', gap: 16, margin: '18px 0', justifyContent: 'center' }}>
+            <button
+              type="button"
+              style={{
+                padding: '0.5rem 1.2rem',
+                borderRadius: 8,
+                border: '1px solid #1976d2',
+                background: '#e3f2fd',
+                color: '#1976d2',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              onClick={() => setAttachmentPopup({ open: true, eqKey: null, type: 'image' })}
+            >
+              📷 Attach Image
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: '0.5rem 1.2rem',
+                borderRadius: 8,
+                border: '1px solid #1976d2',
+                background: '#e3f2fd',
+                color: '#1976d2',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              onClick={() => setAttachmentPopup({ open: true, eqKey: null, type: 'video' })}
+            >
+              🎥 Attach Video
+            </button>
+          </div>
+
         <button
           onClick={handleNext}
           style={{
@@ -759,6 +875,7 @@ const grouped = reportData?.equipment
           Next
         </button>
       </div>
+      </>
     );
   }
 
@@ -790,7 +907,7 @@ const grouped = reportData?.equipment
             fontFamily: '"Times New Roman", Times, serif'
           }}
         >
-          Checklist Report
+          {form.visitType} Checklist Report
         </div>
         </div>
           <div className="report-section" style={{ marginTop: 24 }}>
@@ -950,7 +1067,7 @@ const grouped = reportData?.equipment
             doc.text('ABDULWAHED AHMAD RASHED BIN SHABIB', 105, 18, { align: 'center' });
             doc.setFontSize(14);
             doc.setTextColor(0, 0, 0);
-            doc.text('Checklist Report', 105, 28, { align: 'center' });
+            doc.text(`${reportData.visitType} Checklist Report`, 105, 28, { align: 'center' });
             doc.setFontSize(12);
             let y = 40;
             doc.text(`Date: ${reportData.date}`, 10, y);
@@ -1007,19 +1124,19 @@ const grouped = reportData?.equipment
               return;
             }
             // Debug: log base64 length
-            console.log('PDF base64 length:', pdfBase64.length);
+            // console.log('PDF base64 length:', pdfBase64.length);
             // Send contractId and pdfBase64 to backend, backend will fetch tenant email
             // Debug log
-            console.log('Sending to /api/send-report:', {
-              contractId: form.contractNo,
+            // console.log('Sending to /api/send-report:', {
+            //   contractId: form.contractNo,
               // pdfBase64Preview: pdfBase64 ? pdfBase64.substring(0, 100) + '...' : pdfBase64,
               // pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
-            });
+            // });
             try {
               const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
                 pdfBase64,
                 contractId: form.contractNo,
-                subject: 'Checklist Report',
+                subject: `${reportData.visitType} Checklist Report`,
                 text: 'Please find attached your checklist report.'
               });
               if (resp.data.success) {

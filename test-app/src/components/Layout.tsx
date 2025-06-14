@@ -158,7 +158,7 @@ export default function Layout() {
 
       {/* Main Content */}
       <div className="p-2 pt-20 sm:ml-64">
-        <div className="w-full max-w-3xl mx-auto px-2 sm:px-6 lg:px-8">
+        <div style={{ width: '100%', padding: 0, margin: 0 }}>
           <Outlet />
         </div>
       </div>
