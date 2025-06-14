@@ -357,7 +357,7 @@ const grouped = reportData?.equipment
   // Fetch buildings on mount
     useEffect(() => {
       setLoadingBuildings(true);
-      axios.get('https://react-project-backend-4cfx.onrender.com/api/buildings')
+      axios.get('http://localhost:3001/api/buildings')
         .then(res => {
           if (res.data.success) setBuildings(res.data.buildings);
           else setError('Failed to load buildings');
@@ -374,7 +374,7 @@ const grouped = reportData?.equipment
       return;
     }
     setLoadingUnits(true);
-    axios.get(`https://react-project-backend-4cfx.onrender.com/api/units?buildingId=${form.buildingId}`)
+    axios.get(`http://localhost:3001/api/units?buildingId=${form.buildingId}`)
       .then(res => {
         if (res.data.success) setUnits(res.data.units);
         else setError('Failed to load units');
@@ -391,7 +391,7 @@ const grouped = reportData?.equipment
       return;
     }
     setLoadingEquipment(true);
-    axios.get(`https://react-project-backend-4cfx.onrender.com/api/equipment?buildingId=${form.buildingId}&unitId=${form.unitId}`)
+    axios.get(`http://localhost:3001/api/equipment?buildingId=${form.buildingId}&unitId=${form.unitId}`)
       .then(res => {
         if (res.data.success) {
           // Map both usec_name and susec_name
@@ -460,7 +460,7 @@ const grouped = reportData?.equipment
       return;
     }
     // Always send both buildingId and unitId to backend
-    axios.get(`https://react-project-backend-4cfx.onrender.com/api/unit-details?unit_id=${form.unitId}`)
+    axios.get(`http://localhost:3001/api/unit-details?unit_id=${form.unitId}`)
       .then(res => {
         if (res.data.contract && res.data.tenant) {
           setForm(f => ({
@@ -548,7 +548,7 @@ const grouped = reportData?.equipment
         formData.append('videos', file, file.name);
       });
 
-      await axios.post('https://react-project-backend-4cfx.onrender.com/api/checklist', formData, {
+      await axios.post('http://localhost:3001/api/checklist', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -1027,12 +1027,14 @@ const grouped = reportData?.equipment
             </div>
             </div>
           </div>
+          <div style={{ height: 40 }}></div>
           <div className="report-footer">
             This is a system-generated report. &copy; ABDULWAHED AHMAD RASHED BIN SHABIB
           </div>
+          <div style={{ height: 40 }}></div>
           <div className="print-footer">
             <div className="print-footer-left">
-              Printed date: {new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).replace(',', '')}
+              Printed date: {formatDate_ddMMMyyyy_hhmmtt(reportData.date)}
             </div>
             <div className="print-footer-right"></div>
           </div>
@@ -1133,7 +1135,7 @@ const grouped = reportData?.equipment
               // pdfBase64Length: pdfBase64 ? pdfBase64.length : 0
             // });
             try {
-              const resp = await axios.post('https://react-project-backend-4cfx.onrender.com/api/send-report', {
+              const resp = await axios.post('http://localhost:3001/api/send-report', {
                 pdfBase64,
                 contractId: form.contractNo,
                 subject: `${reportData.visitType} Checklist Report`,

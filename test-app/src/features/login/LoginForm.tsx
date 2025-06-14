@@ -27,7 +27,7 @@ export default function LoginForm() {
     }
 
     try {
-      const res = await axios.post('https://react-project-backend-4cfx.onrender.com/api/login', { username, password });
+      const res = await axios.post('http://localhost:3001/api/login', { username, password });
 
       if (res.data && res.data.success && res.data.token) {
         // Store the actual token from server response

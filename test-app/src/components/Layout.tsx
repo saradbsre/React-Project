@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import logo from '../assets/AWSLogo.png';
 
+const INACTIVITY_LIMIT = 15 * 60 * 1000;
+
 const modules = [
   { name: 'Maintenance', path: 'maintenance', accessKey: 'MNT' },
   { name: 'Tenant', path: 'tenant', accessKey: 'TNT' },
@@ -40,6 +42,34 @@ export default function Layout() {
       document.body.style.overflow = '';
     };
   }, [sidebarOpen]);
+
+  // Inactivity logout logic
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        localStorage.removeItem('token');
+        navigate('/', { replace: true });
+      }, INACTIVITY_LIMIT);
+    };
+        // List of events that indicate user activity
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+
+    events.forEach(event =>
+      window.addEventListener(event, resetTimer)
+    );
+
+    resetTimer(); // Start timer on mount
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event =>
+        window.removeEventListener(event, resetTimer)
+      );
+    };
+  }, [navigate]);
 
   return (
     <>
