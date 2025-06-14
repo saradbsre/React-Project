@@ -1026,7 +1026,7 @@ const grouped = reportData?.equipment
               </div>
             </div>
             </div>
-          </div>
+          </div>  
           <div style={{ height: 40 }}></div>
           <div className="report-footer">
             This is a system-generated report. &copy; ABDULWAHED AHMAD RASHED BIN SHABIB
