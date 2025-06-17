@@ -3,7 +3,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import bsreheader from '../../../assets/bsreheader.png';
-import { handlePrint } from '../../../components/reportfiles/rptmoveinout';
+// import { handlePrint } from '../../../components/reportfiles/rptmoveinout';
 
 
   type Unit = { flat_no: string };
@@ -1059,7 +1059,16 @@ const grouped = reportData?.equipment
         >
           Back
         </button>
-          <button onClick={() => handlePrint('checklist-report-preview')} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Preview & Print</button>
+          <button onClick={() => {
+            const oldTitle = document.title;
+            document.title = `${form.visitType}-Checklist-Report`;
+           window.print();
+           setTimeout(() => {
+           document.title = oldTitle; // Restore after print
+             }, 1000);
+           }
+         } 
+          style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Preview & Print</button>
           {/* <button onClick={handleDownloadPDF} style={{ background: 'linear-gradient(90deg, #1976d2 60%, #90caf9 100%)', color: '#fff', fontWeight: 700 }}>Download PDF</button> */}
           <button onClick={async () => {
             // Generate PDF as base64

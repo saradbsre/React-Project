@@ -202,43 +202,36 @@
 
 /* Print styles */
 @media print {
-  body, .checklist-form, .report-header, .report-section, .report-table, .report-table th, .report-table td, .report-footer, .print-footer {
-    display: flex !important;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 14px;
-    color: #000 !important;
-    margin-top: 24px;
-    padding: 0 8px;
-    font-family: "Times New Roman", Times, serif;
-    width: 100%;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #fff;
-    z-index: 9999;
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
   }
-  .print-footer-right {
-    width: 180px;
-    text-align: right;
+
+  /* Hide everything except the report preview */
+  body * {
+    visibility: hidden !important;
   }
-  .print-footer-right::after {
-    content: "Page " counter(page) " of " counter(pages);
-    float: right;
+  #checklist-report-preview, #checklist-report-preview * {
+    visibility: visible !important;
   }
-  .print-footer-left {
-    width: 60%;
-    text-align: left;
+  #checklist-report-preview {
+    position: absolute !important;
+    left: 0; top: 0; width: 100vw; min-height: 100vh;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
   }
-}
-.print-footer {
-  display: none;
-}
-.report-footer {
-  color: #000 !important;
+
+  /* Prevent page breaks inside tables */
+  table, tr, td, th {
+    page-break-inside: avoid !important;
+  }
 }
 
+/* You can keep these for table formatting */
 .report-table th {
   width: 110px !important;
   min-width: 90px !important;
@@ -250,13 +243,12 @@
   word-break: break-word;
 }
 
+/* Optional: Font size for print */
 #checklist-report-preview,
 #checklist-report-preview * {
-  font-size: 9px !important;
+  font-size: 15px !important;
 }
-
-/* Checklist Report label/title should be 11px */
 #checklist-report-preview .report-title {
-  font-size: 11px !important;
+  font-size: 20px !important;
   font-weight: bold;
 }
