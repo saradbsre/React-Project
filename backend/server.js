@@ -93,8 +93,8 @@ app.post('/api/send-report', async (req, res) => {
       // continue as normal
       const transporter = nodemailer.createTransport({
         host: 'binshabibgroup.ae',
-        port: 465,
-        secure: true, // SSL
+        port: 587,
+        secure: false, // SSL
         auth: {
           user: user,
           pass: password
