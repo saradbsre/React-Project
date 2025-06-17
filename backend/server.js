@@ -116,6 +116,9 @@ app.post('/api/send-report', async (req, res) => {
       res.json({ success: true });
       return;
     } catch (e) {
+      console.log('MAIL_USER:', process.env.MAIL_USER);
+      console.log('MAIL_PASS_ENC:', process.env.MAIL_PASS_ENC);
+      console.log('MAIL_KEY:', process.env.MAIL_KEY);
       console.error('Decryption or mail config error:', e);
       return res.status(500).json({ success: false, error: 'Decryption or mail config error: ' + e.message });
     }
